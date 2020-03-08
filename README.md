@@ -1,7 +1,7 @@
 # resistor_cutter_FC
 Flight computer for a standalone resistor cutter box.
 
-This flight computer allows for balloon cutaway in any of five scenarios.4
+This flight computer allows for balloon cutaway in any of five scenarios.
 1) The stack surpasses a user-set maximum altitude.
 2) The stack drifts out of user-set geographic boundaries.
 3) A master timer expires.
