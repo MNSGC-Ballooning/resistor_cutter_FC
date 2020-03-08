@@ -1,3 +1,4 @@
+// SD functions
 
 void initSD(){
   pinMode(CHIP_SELECT, OUTPUT);
@@ -20,7 +21,8 @@ void initSD(){
     }
     if (!sdActive) Serial.println("No available file names; clear SD card to enable logging");
   }
-  String header = "";
+  String header = F("minutes, gpsFix, latitude, longitude, altitude, ascentRate, satellites, PSI, ATM, pressureAnalog, pressureAltitude,");
+  header+= F("state, stateValue, cutReason, cutterState, cutStamp, pressureStamp");
   if (sdActive) {
     dataLog.println(header);
     dataLog.close();
@@ -31,10 +33,20 @@ void logData() {
   String data = "";
 
   // there's gotta be a better way to do this
-  data = String(millis()/(float)1000) + ", " + String(millis()) + ", ";
+  data = String(timeStamp[0]/(float)60000) + ", " + String(fixStatus) + ", ";
   data += String(latitude) + ", " + String(longitude) + ", " + String(alt[0]) + ", " + String(ascentRate) + ", " + String(sats) + ", ";
-  data += String(pressurePSI) + ", " + String(pressurePSI*PSI_TO_ATM) + ", " + String(cutterOn);
+  data += String(pressureAnalog) + ", " + String(pressurePSI) + ", " + String(pressurePSI*PSI_TO_ATM) + ", " + String(pressureAltitude) + ", ";
+  data += stateString + ", " + String(state) + ", " + cutReason + ", " + String(cutterOn) + ", " + String(cutStamp) + ", " + String(pressureStamp);
 
   Serial.println(data);
+
+  if(sdActive) {
+    dataLog = SD.open(fileName, FILE_WRITE);
+    digitalWrite(LED_SD,HIGH);
+    delay(20);
+    dataLog.println(data);
+    dataLog.close();
+    digitalWrite(LED_SD,LOW);
+  }
   
 }
