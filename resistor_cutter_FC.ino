@@ -30,8 +30,8 @@
 #define PRESSURE_TIMER_INTERVAL 3000000 // timer that'll cut the balloon 50 minutes after pressure reads 70k feet
 
 // Constants
-#define PSI_TO_ATM 0.068046   // PSI to ATM conversion ratio
-#define SEA_LEVEL_PSI 14.7    // average sea level pressure in PSI
+#define PSI_TO_ATM 0.068046             // PSI to ATM conversion ratio
+#define SEA_LEVEL_PSI 14.7              // average sea level pressure in PSI
 
 // Fix statuses
 #define NOFIX 0x00
@@ -39,13 +39,14 @@
 
 // Boundaries
 ///////CHANGE BEFORE EACH FLIGHT////////
-#define EASTERN_BOUNDARY -92
+#define EASTERN_BOUNDARY -92            // longitudes
 #define WESTERN_BOUNDARY -95
-#define NORTHERN_BOUNDARY 45
+#define NORTHERN_BOUNDARY 45            // latitudes
 #define SOUTHERN_BOUNDARY 42
-#define MAX_ALTITUDE 110000
-#define INIT_ALTITUDE 5000
-
+#define MAX_ALTITUDE 110000             // max altitude stack can reach before balloon is cut
+#define PRESSURE_TIMER_ALTITUDE 70000   // altitude at which the pressure timer begins
+#define INIT_ALTITUDE 5000              // altitude at which the state machine begins
+#define MAX_SA_RATE 300                 // maximum velocity (ft/min) that corresponds to a slow ascent state
 // Time Stamps
 unsigned long updateStamp = 0;
 unsigned long cutStamp = 0;

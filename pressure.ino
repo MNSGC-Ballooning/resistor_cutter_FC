@@ -15,7 +15,7 @@ void setPressureTimer() {
   static bool timerSet = false;
   static byte counter = 0;
   // set the pressure stamp once, and only if the sensor calulcates an altitude above 70k feet
-  if(pressureAltitude > 70000 && !timerSet) {
+  if(pressureAltitude > PRESSURE_TIMER_ALTITUDE && !timerSet) {
     counter++;
     if (counter >= 20) {
       pressureStamp = millis();

@@ -11,7 +11,7 @@ void stateMachine() {
   static byte initCounter = 0;
 
   // ensure the state machine does not start until a certain intial altitude is reached
-  if(!initDone) {
+  if(!initDone && fixStatus == FIX) {
     state = INITIALIZATION;
     stateString = F("Initialization");
     if(alt[0] > INIT_ALTITUDE) {
@@ -24,7 +24,7 @@ void stateMachine() {
   }
 
   // run state switch function if the state machine is intialized
-  if (initDone) { 
+  if (initDone && fixStatus == FIX) { 
     stateSwitch();
   }
 
