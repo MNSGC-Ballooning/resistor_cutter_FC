@@ -1,7 +1,5 @@
 // Resistor Cutaway Standalone System
 
-// OTHERWISE KNOWN AS BORIS
-
 #define SERIAL_BUFFER_SIZE 32
 
 // Libraries
@@ -26,12 +24,14 @@
 #define GPS_LED_INTERVAL 10000          // GPS LED runs on a 10 second loop
 #define UPDATE_INTERVAL 4000            // update all data and the state machine every 4 seconds
 #define CUT_INTERVAL 30000              // ensure the cutting mechanism is on for 30 seconds
-#define MASTER_INTERVAL 8160000         // master timer that cuts balloon after 2hr, 15min
-#define PRESSURE_TIMER_INTERVAL 3000000 // timer that'll cut the balloon 50 minutes after pressure reads 70k feet
+#define MASTER_INTERVAL 135             // master timer that cuts balloon after 2hr, 15min
+#define PRESSURE_TIMER_INTERVAL 50      // timer that'll cut the balloon 50 minutes after pressure reads 70k feet
+#define ASCENT_INTERVAL 120             // timer that cuts balloon A 2 hours after ASCENT state initializes
 
 // Constants
 #define PSI_TO_ATM 0.068046             // PSI to ATM conversion ratio
 #define SEA_LEVEL_PSI 14.7              // average sea level pressure in PSI
+#define M2MS 60000                      // milliseconds per minute
 
 // Fix statuses
 #define NOFIX 0x00
@@ -44,19 +44,27 @@
 #define NORTHERN_BOUNDARY 45            // latitudes
 #define SOUTHERN_BOUNDARY 42
 #define MAX_ALTITUDE 110000             // max altitude stack can reach before balloon is cut
-#define PRESSURE_TIMER_ALTITUDE 70000   // altitude at which the pressure timer begins
 #define INIT_ALTITUDE 5000              // altitude at which the state machine begins
-#define MAX_SA_RATE 300                 // maximum velocity (ft/min) that corresponds to a slow ascent state
+#define RECOVERY_ALTITUDE 7000          // altitude at which the recovery state intializes on descent
+
+// Velocity Boundaries
+#define MAX_SA_RATE 375                 // maximum velocity (ft/min) that corresponds to a slow ascent state
+#define MAX_FLOAT_RATE 100              // maximum velocity that corresponds to a float state, or minimum for a slow ascent state
+#define MIN_FLOAT_RATE -100             // minimum velocity that corresponds to a float state, or maximum for a slow descent state
+#define MIN_SD_RATE -600                // minimum velocity that corresponds to a slow desent state
+
+#define PRESSURE_TIMER_ALTITUDE 70000   // altitude at which the pressure timer begins
+
 // Time Stamps
 unsigned long updateStamp = 0;
-unsigned long cutStamp = 0;
+unsigned long cutStampA = 0,  cutStampB = 0;  
 unsigned long pressureStamp = 0;
 unsigned long gpsLEDStamp = 0;
 
 // State Machine
 uint8_t state; 
 bool stateSwitched;
-String cutReason;
+String cutReasonA,  cutReasonB;
 String stateString;
 
 // SD Variables
@@ -82,7 +90,7 @@ float pressurePSI;
 float pressureAltitude = 0;         // back up altitude to be used when things get desperate
 
 
-boolean cutterOn = false;
+boolean cutterOnA = false,  cutterOnB = false;
 
 void setup() {
   Serial.begin(9600);   // initialize serial monitor
@@ -111,18 +119,15 @@ void loop() {
   }
 
   // cut balloon if the master timer expires
-  if(millis() > MASTER_INTERVAL) {
-    cutResistorOn();
-    cutReason = F("master timer expired");
+  if(millis() > MASTER_INTERVAL*M2MS) {
+    cutResistorOn('a');
+    cutResistorOn('b');
+    cutReasonA = F("master timer expired");
+    cutReasonB = F("master timer expired");
   }
 
-  // cut balloon if the pressure timer expires
-  if(millis() - pressureStamp > PRESSURE_TIMER_INTERVAL) {
-    cutResistorOn();
-    cutReason = F("pressure timer expired");
-  }
-
-  if(millis() - cutStamp > CUT_INTERVAL && cutterOn) cutResistorOff();
+  if(millis() - cutStampA > CUT_INTERVAL && cutterOnA) cutResistorOff('a');
+  if(millis() - cutStampB > CUT_INTERVAL && cutterOnB) cutResistorOff('b');
 
   fixLEDSchema();
 
