@@ -27,6 +27,7 @@
 #define MASTER_INTERVAL 135             // master timer that cuts balloon after 2hr, 15min
 #define PRESSURE_TIMER_INTERVAL 50      // timer that'll cut the balloon 50 minutes after pressure reads 70k feet
 #define ASCENT_INTERVAL 120             // timer that cuts balloon A 2 hours after ASCENT state initializes
+#define SLOW_DESCENT_INTERVAL 60        // timer that cuts both balloons (as a backup) an hour after SLOW_DESCENT state initializes
 
 // Constants
 #define PSI_TO_ATM 0.068046             // PSI to ATM conversion ratio
@@ -43,7 +44,8 @@
 #define WESTERN_BOUNDARY -95
 #define NORTHERN_BOUNDARY 45            // latitudes
 #define SOUTHERN_BOUNDARY 42
-#define MAX_ALTITUDE 110000             // max altitude stack can reach before balloon is cut
+#define SLOW_DESCENT_CEILING 110000     // max altitude stack can reach before balloon is cut and stack enters slow descent state
+#define SLOW_DESCENT_FLOOR 80000        // min altitude for the slow descent state
 #define INIT_ALTITUDE 5000              // altitude at which the state machine begins
 #define RECOVERY_ALTITUDE 7000          // altitude at which the recovery state intializes on descent
 
@@ -64,6 +66,8 @@ unsigned long gpsLEDStamp = 0;
 // State Machine
 uint8_t state; 
 bool stateSwitched;
+bool maxAltReached = false;
+bool cutStatusA = false, cutStatusB = false;
 String cutReasonA,  cutReasonB;
 String stateString;
 

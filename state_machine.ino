@@ -32,7 +32,7 @@ void stateMachine() {
   }
 
   
-  // runn functions based off of the current state
+  // run functions based off of the current state
   switch(state) {
     ///// Ascent /////
     case 0x01:
@@ -66,12 +66,42 @@ void stateMachine() {
       // do nothing but note state
       stateString = F("Descent");
 
+      static byte floorAltitudeCounter = 0;   // increments if the stack is below the slow descent altitude floor
+      static bool cutCheck = false;
+
+      if(alt[0] < SLOW_DESCENT_FLOOR && alt[0] != 0) {
+        floorAltitudeCounter++;
+
+        if(floorALtitudeCounter >= 10 && !cutCheck) {
+          floorAltitudeCounter = 0;
+
+          cutResistorOn('a');
+          cutResistorOn('b');
+          cutReasonA = F("descent state cut check");
+          cutReasonB = F("descent state cut check");
+        }
+      }
+
       break;
 
     ///// Slow Descent /////      THIS STATE STILL NEEDS TO BE WORKED OUT
     case 0x08:
       // organize timing schema for slow descent state
       stateString = F("Slow Descent");
+
+      static unsigned long slowDescentStamp = millis(); // initializaed upon first time in this state
+      static byte SDTerminationCounter = 0;
+
+      if(millis() - slowDescentStamp > SLOW_DESCENT_INTERVAL*M2MS || (alt[0] < SLOW_DESCENT_FLOOR && alt[0] != 0)) {
+        SDTerminationCounter++;
+
+        if(SDTerminationCounter >= 10) {
+          cutResistorOn('a');
+          cutResistorOn('b');
+          cutReasonA = F("reached slow descent floor");
+          cutReasonB = F("reached slow descent floor");
+        }
+      }
 
       break;
 
@@ -205,7 +235,7 @@ bool boundaryCheck() {
     cutReasonB = F("reached southern boundary");
     return true; 
   }
-  else if (alt[0] > MAX_ALTITUDE) {
+  else if (alt[0] > SLOW_DESCENT_CEILING) {
     cutReasonA = F("reached termination altitude");
     cutReasonB = F("reached termination altitude");
     return true;

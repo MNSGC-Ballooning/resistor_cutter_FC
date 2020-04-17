@@ -22,12 +22,14 @@ void cutResistorOff(char cutter) {
 
   switch(cutter) {
     case 'a':
-
-    break;
+      cutStatusA = true;
+      
+      break;
 
     case 'b':
-
-    break;
+      cutStatusB = true;
+      
+      break;
   }
 //  digitalWrite(CUTTER_PIN, LOW);
 //
