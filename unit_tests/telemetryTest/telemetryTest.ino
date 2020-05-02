@@ -14,16 +14,20 @@
 #define UBLOX_BAUD 9600
 
 // Intervals and Timers
-#define LOOP_INTERVAL 4000
+#define LOOP_INTERVAL 2000
+
+// Array Sizes
+#define SIZE 10
 
 unsigned long loopTimer = 0;
 
 // Constants
 #define PSI_TO_ATM 0.068046             // PSI to ATM conversion ratio
 #define SEA_LEVEL_PSI 14.7              // average sea level pressure in PSI
-#define RADIANS_PER_DEGREE PI/180       // radians per degree
+#define D2R PI/180                      // radians per degree
+#define R2D 180/PI                      // degrees per radian
 #define SECONDS_PER_HOUR 3600           // seconds per hour
-#define FPM_PER_MPH 88                  // feet per second per mile per hour
+#define FPM_PER_MPH 88                  // feet per minute per mile per hour
 
 
 // Fix statuses
@@ -34,10 +38,10 @@ unsigned long loopTimer = 0;
 
 // GPS
 UbloxGPS gps(&UBLOX_SERIAL);
-float alt[10];                  // altitude in feet, also there exists a queue library we can use instead
-unsigned long timeStamp[10];    // time stamp array that can be used with alt array to return a velocity
-float latitude[10];
-float longitude[10];
+float alt[SIZE];                  // altitude in feet, also there exists a queue library we can use instead
+unsigned long timeStamp[SIZE];    // time stamp array that can be used with alt array to return a velocity
+float latitude[SIZE];
+float longitude[SIZE];
 float nextLat = 0;
 float nextLong = 0;
 float nextAlt = 0;

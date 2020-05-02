@@ -22,7 +22,7 @@
 #define FIX_INTERVAL 2000               // GPS with a fix—will flash for 2 seconds
 #define NOFIX_INTERVAL 5000             // GPS with no fix—will flash for 5 seconds
 #define GPS_LED_INTERVAL 10000          // GPS LED runs on a 10 second loop
-#define UPDATE_INTERVAL 4000            // update all data and the state machine every 4 seconds
+#define UPDATE_INTERVAL 2000            // update all data and the state machine every 4 seconds
 #define CUT_INTERVAL 30000              // ensure the cutting mechanism is on for 30 seconds
 #define MASTER_INTERVAL 135             // master timer that cuts balloon after 2hr, 15min
 #define PRESSURE_TIMER_INTERVAL 50      // timer that'll cut the balloon 50 minutes after pressure reads 70k feet
@@ -33,6 +33,11 @@
 #define PSI_TO_ATM 0.068046             // PSI to ATM conversion ratio
 #define SEA_LEVEL_PSI 14.7              // average sea level pressure in PSI
 #define M2MS 60000                      // milliseconds per minute
+#define SIZE 10                         // size of arrays that store values
+#define D2R PI/180                      // degrees to radians conversion
+#define R2D 180/PI                      // radians to degrees conversion
+#define SECONDS_PER_HOUR 3600           // seconds per hour
+#define FPM_PER_MPH 88                  // feet per minute per mile per hour
 
 // Fix statuses
 #define NOFIX 0x00
@@ -79,10 +84,10 @@ bool sdActive = false;
 // GPS Variables
 SoftwareSerial ubloxSerial(UBLOX_RX,UBLOX_TX);
 UbloxGPS gps(&ubloxSerial);
-float alt[10];                  // altitude in feet, also there exists a queue library we can use instead
-unsigned long timeStamp[10];    // time stamp array that can be used with alt array to return a velocity
-float latitude;
-float longitude;
+float alt[SIZE];                  // altitude in feet, also there exists a queue library we can use instead
+unsigned long timeStamp[SIZE];    // time stamp array that can be used with alt array to return a velocity
+float latitude[SIZE];
+float longitude[SIZE];
 float ascentRate;
 uint8_t sats;
 uint8_t fixStatus = NOFIX;
@@ -111,6 +116,8 @@ void setup() {
 }
 
 void loop() {
+
+  gps.update();
 
   if(millis() - updateStamp > UPDATE_INTERVAL) {
     updateGPS();        // update GPS data

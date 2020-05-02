@@ -6,8 +6,8 @@
 #define DESCENT 0x04
 #define SLOW_DESCENT 0x08
 #define FLOAT 0x10
-#define RECOVERY 0x20
-#define OUT_OF_BOUNDARY 0x40
+#define OUT_OF_BOUNDARY 0x20
+#define RECOVERY 0x40
 
 void stateMachine() {
   static bool initDone = false;
@@ -72,7 +72,7 @@ void stateMachine() {
       if(alt[0] < SLOW_DESCENT_FLOOR && alt[0] != 0) {
         floorAltitudeCounter++;
 
-        if(floorALtitudeCounter >= 10 && !cutCheck) {
+        if(floorAltitudeCounter >= 10 && !cutCheck) {
           floorAltitudeCounter = 0;
 
           cutResistorOn('a');
@@ -107,7 +107,7 @@ void stateMachine() {
 
     ///// Float /////
     case 0x10:
-      // set timer, and if state persists, abort flight
+      // abort flight
       stateString = F("Float");
 
       // cut both balloons as the stack is in a float state
@@ -130,10 +130,10 @@ void stateMachine() {
       // cut resistor and note state
       stateString = F("Out of Boundary");
       
-      // cut both balloons as the stack is out of the predefined fligth boundaries
+      // cut both balloons as the stack is out of the predefined flight boundaries
       cutResistorOn('a');
       cutResistorOn('b');
-      // cut reasons are more specifically defined the the boundaryCheck() function
+      // cut reasons are more specifically defined in the boundaryCheck() function
 
       break;
 
@@ -153,7 +153,7 @@ void stateSwitch() {
 
   if(ascentRate > MAX_SA_RATE && state != ASCENT) {
     ascentCounter++;
-    if(ascentCounter >= 5) {
+    if(ascentCounter >= 10) {
       state = ASCENT;
       ascentCounter = 0;
       stateSwitched = true;
@@ -161,7 +161,7 @@ void stateSwitch() {
   }
   else if(ascentRate <= MAX_SA_RATE && ascentRate > MAX_FLOAT_RATE && state != SLOW_ASCENT) {
     slowAscentCounter++;
-    if(slowAscentCounter >= 5) {
+    if(slowAscentCounter >= 10) {
       state = SLOW_ASCENT;
       slowAscentCounter = 0;
       stateSwitched = true;
@@ -169,7 +169,7 @@ void stateSwitch() {
   }
   else if(ascentRate <= MAX_FLOAT_RATE && ascentRate >= MIN_FLOAT_RATE && state != FLOAT) {
     floatCounter++;
-    if(floatCounter >= 15) {
+    if(floatCounter >= 20) {
       state = FLOAT;
       floatCounter = 0;
       stateSwitched = true;
@@ -177,7 +177,7 @@ void stateSwitch() {
   }
   else if(ascentRate < MIN_FLOAT_RATE && ascentRate >= MIN_SD_RATE && state != SLOW_DESCENT) {
     slowDescentCounter++;
-    if(slowDescentCounter >= 5) {
+    if(slowDescentCounter >= 10) {
       state = SLOW_DESCENT;
       slowDescentCounter = 0;
       stateSwitched = true;
@@ -185,7 +185,7 @@ void stateSwitch() {
   }
   else if(ascentRate < MIN_SD_RATE && state !=DESCENT) {
     descentCounter++;
-    if(descentCounter >= 5) {
+    if(descentCounter >= 10) {
       state = DESCENT;
       descentCounter = 0;
       stateSwitched = true;
@@ -193,7 +193,7 @@ void stateSwitch() {
   }
   else if(state != RECOVERY && (state == DESCENT || state == SLOW_DESCENT) && alt[0] < RECOVERY_ALTITUDE) {
     recoveryCounter++;
-    if(recoveryCounter >= 5) {
+    if(recoveryCounter >= 10) {
       state = RECOVERY;
       recoveryCounter = 0;
       stateSwitched = true;
@@ -203,7 +203,7 @@ void stateSwitch() {
   // part of a separate series of if/else statements as criteria for this state is different
   if(boundaryCheck() && state != OUT_OF_BOUNDARY) {
     boundaryCounter++;
-    if(boundaryCounter >= 5 ) {
+    if(boundaryCounter >= 10) {
       state = OUT_OF_BOUNDARY;
       boundaryCounter = 0;
       stateSwitched = true;

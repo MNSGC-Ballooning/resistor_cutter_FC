@@ -37,7 +37,7 @@ void logData() {
   data = String(timeStamp[0]/(float)60000) + ", " + String(fixStatus);
   data += ", " + String(latitude[0],6) + ", " + String(longitude[0],6) + ", " + String(alt[0]);
   data += ", " + String(nextLat,6) + ", " + String(nextLong,6) + ", " + String(nextAlt) + ", " + String(ascentRate) + ", "+ String(groundSpeed) + ", " + String(groundSpeed/FPM_PER_MPH);
-  data += ", " + String(heading/RADIANS_PER_DEGREE,4) + ", " + String(sats);
+  data += ", " + String(heading*R2D,4) + ", " + String(sats);
   //data += "," + String(pressureAnalog) + ", " + String(pressurePSI) + ", " + String(pressurePSI*PSI_TO_ATM) + ", " + String(pressureAltitude);
 
   Serial.println(data);
