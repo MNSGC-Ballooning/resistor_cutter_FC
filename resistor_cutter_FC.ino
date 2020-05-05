@@ -88,9 +88,12 @@ float alt[SIZE];                  // altitude in feet, also there exists a queue
 unsigned long timeStamp[SIZE];    // time stamp array that can be used with alt array to return a velocity
 float latitude[SIZE];
 float longitude[SIZE];
+bool fixFlag[SIZE];
+uint8_t fixStatus[10];
 float ascentRate;
+float groundSpeed;
+float heading;
 uint8_t sats;
-uint8_t fixStatus = NOFIX;
 bool gpsLEDOn = false;
 
 // Pressure Sensor Variables
@@ -119,10 +122,10 @@ void loop() {
 
   gps.update();
 
-  if(millis() - updateStamp > UPDATE_INTERVAL) {
-    updateGPS();        // update GPS data
-    
+  if(millis() - updateStamp > UPDATE_INTERVAL) {   
     updatePressure();   // update pressure data
+
+    updateTelemetry();        // update GPS data
     
     logData();          // log the data
     

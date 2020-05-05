@@ -33,7 +33,7 @@ void logData() {
   String data = "";
 
   // there's gotta be a better way to do this
-  data = String(timeStamp[0]/(float)60000) + ", " + String(fixStatus) + ", ";
+  data = String(timeStamp[0]/(float)60000) + ", " + String(fixStatus[0]) + ", ";
   data += String(latitude[0]) + ", " + String(longitude[0]) + ", " + String(alt[0]) + ", " + String(ascentRate) + ", " + String(sats) + ", ";
   data += String(pressureAnalog) + ", " + String(pressurePSI) + ", " + String(pressurePSI*PSI_TO_ATM) + ", " + String(pressureAltitude) + ", ";
   data += stateString + ", " + String(state) + ", " + cutReasonA + ", " + cutReasonB + ", " + String(cutterOnA) + ", " + String(cutterOnB) + ", ";

@@ -14,36 +14,63 @@ void initGPS() {
 }
 
 
-void updateGPS() {
+void updateTelemetry() {
 
-  for(int i=0; i++; i<SIZE) {
+  for(int i=0; i++; i<(SIZE-1)) {
+    // "push back" array indices by one to make room for new values
     alt[i+1] = alt[i];
     latitude[i+1] = latitude[i];
     longitude[i+1] = longitude[i];
     timeStamp[i+1] = timeStamp[i];
+    fixStatus[i+1] = fixStatus[i];
   }
 
-  latitude[0] = gps.getLat();
-  longitude[0] = gps.getLon();
-  alt[0] =  gps.getAlt_feet();
-  timeStamp[0] = millis();
-  sats = gps.getSats();
+  timeStamp[0] = millis();  // get most recent time stamp
+  sats = gps.getSats();     // get most recent number of satellites
 
-  ascentRate = getAscentRate(alt[0],alt[9],timeStamp[0],timeStamp[9]);
+  float dt = (timeStamp[0] - timeStamp[9])/1000;
 
   checkFix();
+
+  if(fixStatus[0] == FIX) {
+    // get GPS data if GPS has a fix
+    latitude[0] = gps.getLat();
+    longitude[0] = gps.getLon();
+    alt[0] =  gps.getAlt_feet();
+
+    if(fixStatus[0] == FIX && fixStatus[9] == FIX) {
+      // only get these values if the GPS had a fix for inputs
+      ascentRate = getAscentRate(alt[0],alt[9],timeStamp[0],timeStamp[9]);
+      groundSpeed = getGroundSpeed(latitude[0],latitude[9],longitude[0],longitude[9],timeStamp[0],timeStamp[9]);
+      heading = getHeading(latitude[0],latitude[9],longitude[0],longitude[9]);
+    }
+  }
+  else {
+    // use linear regressions to predict geo-coordinates
+    latitude[0] = getNextLat(latitude[1],heading,dt,groundSpeed);
+    longitude[0] = getNextLong(longitude[1],latitude[1],heading,dt,groundSpeed);
+
+    if (abs(alt[1] - pressureAltitude) < 1000 && alt[1] < 80000) {
+      // only log pressure altitude if it is within 1000 feet of the most recent altitude calculation AND below 80,000 ft (where pressure sensors are reliable)
+      alt[0] = pressureAltitude;
+    }
+    else {
+      // if pressure sensor altitude isn't reliable, find next altitude through a linear regression method
+      alt[0] = getNextAlt(ascentRate,dt,alt[1]);
+    }
+  }
   
 }
 
 void checkFix() {
   if(gps.getFixAge() < 4000) {
-    fixStatus = FIX;
+    fixStatus[0] = FIX;
   }
   else if(gps.getFixAge() > 4000) {
-    fixStatus = NOFIX;
+    fixStatus[0] = NOFIX;
   }
   else{
-    fixStatus = NOFIX;
+    fixStatus[0] = NOFIX;
   }
 }
 
