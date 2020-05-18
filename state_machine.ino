@@ -3,11 +3,12 @@
 #define INITIALIZATION 0x00   // corresponding hex values are chosen so as to avoid bit-flipping in the stratosphere
 #define ASCENT 0x01
 #define SLOW_ASCENT 0x02
-#define DESCENT 0x04
-#define SLOW_DESCENT 0x08
+#define SLOW_DESCENT 0x04
+#define DESCENT 0x08
 #define FLOAT 0x10
 #define OUT_OF_BOUNDARY 0x20
-#define RECOVERY 0x40
+#define TEMPERATURE_FAILURE 0x40
+#define RECOVERY 0x80
 
 void stateMachine() {
   static bool initDone = false;
@@ -45,6 +46,11 @@ void stateMachine() {
         cutResistorOn('a');
         cutReasonA = F("expired ascent timer");
       }
+      // cut balloon A if the termination altitude is reached
+      if (alt[0] > SLOW_DESCENT_CEILING) {
+        cutResistorOn('a');
+        cutReasonA = F("reached termination altitude");
+      }
 
       break;
 
@@ -61,8 +67,29 @@ void stateMachine() {
 
       break;
 
-    ///// Descent /////
+    ///// Slow Descent /////      THIS STATE STILL NEEDS TO BE WORKED OUT
     case 0x04:
+      // organize timing schema for slow descent state
+      stateString = F("Slow Descent");
+
+      static unsigned long slowDescentStamp = millis(); // initializaed upon first time in this state
+      static byte SDTerminationCounter = 0;
+
+      if(millis() - slowDescentStamp > SLOW_DESCENT_INTERVAL*M2MS || (alt[0] < SLOW_DESCENT_FLOOR && alt[0] != 0)) {
+        SDTerminationCounter++;
+
+        if(SDTerminationCounter >= 10) {
+          cutResistorOn('a');
+          cutResistorOn('b');
+          cutReasonA = F("reached slow descent floor");
+          cutReasonB = F("reached slow descent floor");
+        }
+      }
+
+      break;
+
+    ///// Descent /////
+    case 0x08:
       // do nothing but note state
       stateString = F("Descent");
 
@@ -79,27 +106,6 @@ void stateMachine() {
           cutResistorOn('b');
           cutReasonA = F("descent state cut check");
           cutReasonB = F("descent state cut check");
-        }
-      }
-
-      break;
-
-    ///// Slow Descent /////      THIS STATE STILL NEEDS TO BE WORKED OUT
-    case 0x08:
-      // organize timing schema for slow descent state
-      stateString = F("Slow Descent");
-
-      static unsigned long slowDescentStamp = millis(); // initializaed upon first time in this state
-      static byte SDTerminationCounter = 0;
-
-      if(millis() - slowDescentStamp > SLOW_DESCENT_INTERVAL*M2MS || (alt[0] < SLOW_DESCENT_FLOOR && alt[0] != 0)) {
-        SDTerminationCounter++;
-
-        if(SDTerminationCounter >= 10) {
-          cutResistorOn('a');
-          cutResistorOn('b');
-          cutReasonA = F("reached slow descent floor");
-          cutReasonB = F("reached slow descent floor");
         }
       }
 
@@ -234,11 +240,6 @@ bool boundaryCheck() {
     cutReasonA = F("reached southern boundary");
     cutReasonB = F("reached southern boundary");
     return true; 
-  }
-  else if (alt[0] > SLOW_DESCENT_CEILING) {
-    cutReasonA = F("reached termination altitude");
-    cutReasonB = F("reached termination altitude");
-    return true;
   }
   else {
     return false;

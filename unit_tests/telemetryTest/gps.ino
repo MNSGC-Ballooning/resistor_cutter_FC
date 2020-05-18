@@ -39,7 +39,17 @@ void updateGPS() {
   groundSpeed = getGroundSpeed(latitude[0],latitude[SIZE-1],longitude[0],longitude[SIZE-1],timeStamp[0],timeStamp[SIZE-1]);
   ascentRate = getAscentRate(alt[0],alt[SIZE-1],timeStamp[0],timeStamp[SIZE-1]);
   dt = (timeStamp[0] - timeStamp[1])/1000;  // best estimate of time between calculations
-  heading = getHeading(latitude[0],latitude[SIZE-1],longitude[0],longitude[SIZE-1]);
+
+
+  // attribute weights to various heading measurements
+  float headingLong = getHeading(latitude[0],latitude[SIZE-1],longitude[0],longitude[SIZE-1]);
+  float headingShort = getHeading(latitude[0],latitude[1],longitude[0],longitude[1]);
+
+  float hLongWeight = 0.7;
+  float hShortWeight = 1 - hLongWeight;
+  
+  heading = headingWeights(headingLong,headingShort,hLongWeight,hShortWeight);  // get a weighted heading
+  
   nextAlt = getNextAlt(ascentRate,dt,alt[0]);
   nextLat = getNextLat(latitude[0],heading,dt,groundSpeed);
   nextLong = getNextLong(longitude[0],latitude[0],heading,dt,groundSpeed);
@@ -146,4 +156,26 @@ float getHeading(float lat1, float lat2, float long1, float long2) {
   float heading = atan2(headingX,headingY);
 
   return heading;
+}
+
+float headingWeights(float heading1, float heading2, float weight1, float weight2) {
+  // input headings are between -180 and 180 degrees, causing some issues initially
+
+  // convert negative headings to positive values to avoid computation errors
+  if(heading1 < 0) {
+    heading1 += 360;
+  }
+  if(heading2 < 0) {
+    heading2 += 360;
+  }
+  
+  float heading = heading1*weight1 + heading2*weight2;  // find the weighted heading
+
+  // place heading measurement back in -180 to 180 degrees range
+  if(heading > 180) {
+    heading -= 360;
+  }
+
+  return heading;
+  
 }
