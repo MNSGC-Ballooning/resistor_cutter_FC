@@ -1,9 +1,4 @@
 # resistor_cutter_FC
-Flight computer for a standalone resistor cutter box.
+Flight computers for a semi-autonomous double resistor cutaway system.
 
-This flight computer allows for balloon cutaway in any of five scenarios.
-1) The stack surpasses a user-set maximum altitude.
-2) The stack drifts out of user-set geographic boundaries.
-3) A master timer expires.
-4) A pressure timer, which begins after a certain altitude is calculated from a pressure-altitude equation, expires.
-5) The stack is detected to be in a "slow ascent" state.
+The system was developed so that each individual cutter component can operate independently. Ideally they work in tandem, but this development choice was made in order to limit the effects of failed communications.

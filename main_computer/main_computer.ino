@@ -1,6 +1,6 @@
 // Resistor Cutaway Standalone System
 
-// This is the code for the main flight cimputer, presumably flown with a Teensy 3.5 and an SD logger
+// This is the code for the main flight computer, presumably flown with a Teensy 3.5 and an SD logger
 // Communications devices still need to be decided and implemented
 
 #define SERIAL_BUFFER_SIZE 32
