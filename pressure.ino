@@ -1,26 +1,35 @@
 // Pressure sensor functions
 
-void updatePressure() {
-  pressureAnalog = analogRead(PRESSURE_ANALOG_PIN);
-  float pressureVoltage = pressureAnalog*(5.0/1024);
-  pressurePSI = map(pressureVoltage, 0.5, 4.5, 0, 15);    // map the voltage into a psi measurement
-
-  // for equation: https://www.brisbanehotairballooning.com.au/pressure-and-altitude-conversion/
-  if(pressurePSI != 0) {
-    pressureAltitude = (pow(10,log10(pressurePSI/SEA_LEVEL_PSI)/5.2558797) - 1)/(-6.8755856E-6);    // that desperate altitude that was mentioned
+void initPressure() {
+  while(!baro.begin())
+  {
+    Serial.println(F("Could not find a valid MS5611 sensor, check wiring!"));
+    delay(500);
   }
+
+  baroReferencePressure = baro.readPressure();                    // Get a reference pressure for relative altitude
+
+  Serial.println(F("MS5611 barometer setup successful..."));
 }
 
-void setPressureTimer() {
-  static bool timerSet = false;
-  static byte counter = 0;
-  // set the pressure stamp once, and only if the sensor calulcates an altitude above 70k feet
-  if(pressureAltitude > PRESSURE_TIMER_ALTITUDE && !timerSet) {
-    counter++;
-    if (counter >= 20) {
-      pressureStamp = millis();
-      timerSet = true;
-    }
-  }
+
+void calibrateBaro(float pressure, float alt) {
+  // inputs: pressure (PA), alt (feet)
+  // Read a pressure value in order get an accurate sea level pressure value
+  seaLevelPressure = baro.getSeaLevel(pressure, alt/FEET_PER_METER);
+
+  Serial.println(F("MS5611 calibrated..."));
   
+}
+
+
+void updatePressure(){
+
+  // Read true temperature & Pressure
+  baroTemp = baro.readTemperature();
+  pressurePa = baro.readPressure();
+
+  // Calculate altitude
+  pressureAltitude = baro.getAltitude(pressurePa, seaLevelPressure)*FEET_PER_METER;
+  pressureRelativeAltitude = baro.getAltitude(pressurePa, baroReferencePressure)*FEET_PER_METER; 
 }

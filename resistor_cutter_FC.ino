@@ -1,11 +1,16 @@
 // Resistor Cutaway Standalone System
 
+// This is the code for the main flight cimputer, presumably flown with a Teensy 3.5 and an SD logger
+// Communications devices still need to be decided and implemented
+
 #define SERIAL_BUFFER_SIZE 32
 
 // Libraries
+#include <SPI.h>
 #include <SD.h>
 #include <SoftwareSerial.h>
 #include <UbloxGPS.h>
+#include <MS5611.h>
 #include <Arduino.h>
 
 
@@ -19,8 +24,8 @@
 #define PRESSURE_ANALOG_PIN A0
 
 // Intervals
-#define FIX_INTERVAL 2000               // GPS with a fix—will flash for 2 seconds
-#define NOFIX_INTERVAL 5000             // GPS with no fix—will flash for 5 seconds
+#define FIX_INTERVAL 5000               // GPS with a fix—will flash for 5 seconds
+#define NOFIX_INTERVAL 2000             // GPS with no fix—will flash for 2 seconds
 #define GPS_LED_INTERVAL 10000          // GPS LED runs on a 10 second loop
 #define UPDATE_INTERVAL 2000            // update all data and the state machine every 4 seconds
 #define CUT_INTERVAL 30000              // ensure the cutting mechanism is on for 30 seconds
@@ -30,7 +35,7 @@
 #define SLOW_DESCENT_INTERVAL 60        // timer that cuts both balloons (as a backup) an hour after SLOW_DESCENT state initializes
 
 // Constants
-#define PSI_TO_ATM 0.068046             // PSI to ATM conversion ratio
+#define PA_TO_ATM 1/101325              // PSI to ATM conversion ratio
 #define SEA_LEVEL_PSI 14.7              // average sea level pressure in PSI
 #define M2MS 60000                      // milliseconds per minute
 #define SIZE 10                         // size of arrays that store values
@@ -38,6 +43,7 @@
 #define R2D 180/PI                      // radians to degrees conversion
 #define SECONDS_PER_HOUR 3600           // seconds per hour
 #define FPM_PER_MPH 88                  // feet per minute per mile per hour
+#define FEET_PER_METER 3.28084          // feet per meter
 
 // Fix statuses
 #define NOFIX 0x00
@@ -65,7 +71,6 @@
 // Time Stamps
 unsigned long updateStamp = 0;
 unsigned long cutStampA = 0,  cutStampB = 0;  
-unsigned long pressureStamp = 0;
 unsigned long gpsLEDStamp = 0;
 
 // State Machine
@@ -96,10 +101,15 @@ float heading;
 uint8_t sats;
 bool gpsLEDOn = false;
 
-// Pressure Sensor Variables
-int pressureAnalog;
-float pressurePSI;
-float pressureAltitude = 0;         // back up altitude to be used when things get desperate
+// MS5611 Pressure Sensor Variables
+MS5611 baro;
+float seaLevelPressure;         // in Pascals
+float baroReferencePressure;    // some fun pressure/temperature readings below 
+float baroTemp;                 // non-"raw" readings are in Pa for pressure, C for temp, meters for altitude
+unsigned int pressurePa;
+float pressureAltitude;
+float pressureRelativeAltitude;
+boolean baroCalibrated = false; // inidicates if the barometer has been calibrated or not
 
 
 boolean cutterOnA = false,  cutterOnB = false;
@@ -108,6 +118,8 @@ void setup() {
   Serial.begin(9600);   // initialize serial monitor
   
   initGPS();            // initialze GPS
+
+  initPressure();       // initialize pressure sensor
 
   initSD();             // initialize SD card
 
@@ -125,9 +137,11 @@ void loop() {
   if(millis() - updateStamp > UPDATE_INTERVAL) {   
     updatePressure();   // update pressure data
 
-    updateTelemetry();        // update GPS data
+    updateTelemetry();  // update GPS data
     
     logData();          // log the data
+
+    //NEEDED: Function to read data from comms from cutter boxes
     
     stateMachine();     // update the state machine
   }
