@@ -74,6 +74,33 @@ void checkFix() {
   }
 }
 
+bool boundaryCheck() {
+  // function to check if the payload is out of the flight boundaries
+  if (longitude > EASTERN_BOUNDARY) {
+    cutReasonA = F("reached eastern boundary");
+    cutReasonB = F("reached eastern boundary");
+    return true;
+  }
+  else if (longitude < WESTERN_BOUNDARY) {
+    cutReasonA = F("reached western boundary");
+    cutReasonB = F("reached western boundary");
+    return true;
+  }
+  else if (latitude > NORTHERN_BOUNDARY) {
+    cutReasonA = F("reached northern boundary");
+    cutReasonB = F("reached northern boundary");
+    return true;
+  }
+  else if (latitude < SOUTHERN_BOUNDARY) {
+    cutReasonA = F("reached southern boundary");
+    cutReasonB = F("reached southern boundary");
+    return true; 
+  }
+  else {
+    return false;
+  }
+}
+
 void fixLEDSchema() {
   // fix LED timing schema
   if(millis() - gpsLEDStamp > GPS_LED_INTERVAL && !gpsLEDOn) {

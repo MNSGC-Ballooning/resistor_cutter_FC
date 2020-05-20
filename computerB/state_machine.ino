@@ -39,19 +39,6 @@ void stateMachine() {
     case 0x01:
       stateString = F("Ascent");
 
-      static unsigned long ascentStamp = millis();
-
-      // cut balloon A if the ascent timer runs out
-      if(millis() - ascentStamp > ASCENT_INTERVAL*M2MS) {
-        cutResistorOnA();
-        cutReasonA = F("expired ascent timer");
-      }
-      // cut balloon A if the termination altitude is reached
-      if (alt[0] > SLOW_DESCENT_CEILING) {
-        cutResistorOnA();
-        cutReasonA = F("reached termination altitude");
-      }
-
       break;
 
     ///// Slow Ascent /////
@@ -60,8 +47,8 @@ void stateMachine() {
       stateString = F("Slow Ascent");
 
       // cut both balloons as the stack is ascending too slowly
-      cutResistorOnA();
-      cutReasonA = F("slow ascent state");
+      cutResistorOnB();
+      cutReasonB = F("slow ascent state");
 
       break;
 
@@ -77,8 +64,8 @@ void stateMachine() {
         SDTerminationCounter++;
 
         if(SDTerminationCounter >= 10) {
-          cutResistorOnA();
-          cutReasonA = F("reached slow descent floor");
+          cutResistorOnB();
+          cutReasonB = F("reached slow descent floor");
         }
       }
 
@@ -98,8 +85,8 @@ void stateMachine() {
         if(floorAltitudeCounter >= 10 && !cutCheck) {
           floorAltitudeCounter = 0;
 
-          cutResistorOnA();
-          cutReasonA = F("descent state cut check");
+          cutResistorOnB();
+          cutReasonB = F("descent state cut check");
         }
       }
 
@@ -111,8 +98,8 @@ void stateMachine() {
       stateString = F("Float");
 
       // cut both balloons as the stack is in a float state
-      cutResistorOnA();
-      cutReasonA = F("float state");      
+      cutResistorOnB();
+      cutReasonB = F("float state");      
 
       break;
 
@@ -121,8 +108,8 @@ void stateMachine() {
       // cut resistor and note state
       stateString = F("Out of Boundary");
       
-      // cut both balloons as the stack is out of the predefined flight boundaries
-      cutResistorOnA();
+      // cut balloon as the stack is out of the predefined flight boundaries
+      cutResistorOnB();
       // cut reasons are more specifically defined in the boundaryCheck() function
 
       break;
@@ -133,7 +120,7 @@ void stateMachine() {
       stateString = F("Temperature Failure");
 
       // cut balloon as temps are at critical levels
-      cutResistorOnA();
+      cutResistorOnB();
 
       // cut reasons defined within tempCheck() function
 
@@ -145,6 +132,7 @@ void stateMachine() {
       stateString = F("Recovery");
 
       break;
+     
 
   }
   
@@ -153,10 +141,10 @@ void stateMachine() {
 
 void stateSwitch() {
   // initialize all counters as static bytes that begin at zero
-  static byte ascentCounter = 0,  slowAscentCounter = 0,  descentCounter = 0, slowDescentCounter = 0, floatCounter = 0, recoveryCounter = 0, boundaryCounter = 0;
+  static byte ascentCounter = 0,  slowAscentCounter = 0,  descentCounter = 0, slowDescentCounter = 0, floatCounter = 0, recoveryCounter = 0, boundaryCounter = 0, tempCounter = 0;
 
   if(stateSwitched) {     // reset all state counters if the state was just switched
-    ascentCounter = 0;  slowAscentCounter = 0;  descentCounter  = 0;  slowDescentCounter = 0;   floatCounter  = 0; recoveryCounter = 0;  boundaryCounter = 0;
+    ascentCounter = 0;  slowAscentCounter = 0;  descentCounter  = 0;  slowDescentCounter = 0;   floatCounter  = 0; recoveryCounter = 0;  boundaryCounter = 0; tempCounter = 0;
     stateSwitched = false;
   }
 
@@ -215,6 +203,15 @@ void stateSwitch() {
     if(boundaryCounter >= 10) {
       state = OUT_OF_BOUNDARY;
       boundaryCounter = 0;
+      stateSwitched = true;
+    }
+  }
+
+  if(tempCheck() && state != TEMPERATURE_FAILURE)  {
+    tempCounter++;
+    if(tempCounter >= 10) {
+      state = TEMPERATURE_FAILURE;
+      tempCounter  = 0;
       stateSwitched = true;
     }
   }  

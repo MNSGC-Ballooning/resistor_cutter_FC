@@ -124,15 +124,8 @@ void stateMachine() {
 
       break;
 
-    ///// Recovery /////
-    case 0x20:
-      // reserved for any functions near the ground
-      stateString = F("Recovery");
-
-      break;
-      
     ///// Out of Boundary /////
-    case 0x40:
+    case 0x20:
       // cut resistor and note state
       stateString = F("Out of Boundary");
       
@@ -143,6 +136,26 @@ void stateMachine() {
 
       break;
 
+    ///// Temperature Failure /////
+    case 0x40:
+      // cut resistor and note state
+      stateString = F("Temperature Failure");
+
+      // cut balloon as temps are at critical levels
+      cutResistorOn('a');
+      cutResistorOn('b');
+
+      // cut reasons defined within tempCheck() function
+
+      break;
+
+    ///// Recovery /////
+    case 0x80:
+      // reserved for any functions near the ground
+      stateString = F("Recovery");
+
+      break;
+
   }
   
 }
@@ -150,10 +163,10 @@ void stateMachine() {
 
 void stateSwitch() {
   // initialize all counters as static bytes that begin at zero
-  static byte ascentCounter = 0,  slowAscentCounter = 0,  descentCounter = 0, slowDescentCounter = 0, floatCounter = 0, recoveryCounter = 0, boundaryCounter = 0;
+  static byte ascentCounter = 0,  slowAscentCounter = 0,  descentCounter = 0, slowDescentCounter = 0, floatCounter = 0, recoveryCounter = 0, boundaryCounter = 0, tempCounter = 0;
 
   if(stateSwitched) {     // reset all state counters if the state was just switched
-    ascentCounter = 0;  slowAscentCounter = 0;  descentCounter  = 0;  slowDescentCounter = 0;   floatCounter  = 0; recoveryCounter = 0;  boundaryCounter = 0;
+    ascentCounter = 0;  slowAscentCounter = 0;  descentCounter  = 0;  slowDescentCounter = 0;   floatCounter  = 0; recoveryCounter = 0;  boundaryCounter = 0, tempCounter = 0;
     stateSwitched = false;
   }
 
@@ -214,35 +227,14 @@ void stateSwitch() {
       boundaryCounter = 0;
       stateSwitched = true;
     }
-  }
-  
-}
+  } 
 
-
-// function to check if the payload is out of the flight boundaries
-bool boundaryCheck() {
-  if (longitude > EASTERN_BOUNDARY) {
-    cutReasonA = F("reached eastern boundary");
-    cutReasonB = F("reached eastern boundary");
-    return true;
-  }
-  else if (longitude < WESTERN_BOUNDARY) {
-    cutReasonA = F("reached western boundary");
-    cutReasonB = F("reached western boundary");
-    return true;
-  }
-  else if (latitude > NORTHERN_BOUNDARY) {
-    cutReasonA = F("reached northern boundary");
-    cutReasonB = F("reached northern boundary");
-    return true;
-  }
-  else if (latitude < SOUTHERN_BOUNDARY) {
-    cutReasonA = F("reached southern boundary");
-    cutReasonB = F("reached southern boundary");
-    return true; 
-  }
-  else {
-    return false;
-  }
-  
+  if(tempCheck() && state != TEMPERATURE_FAILURE)  {
+    tempCounter++;
+    if(tempCounter >= 10) {
+      state = TEMPERATURE_FAILURE;
+      tempCounter  = 0;
+      stateSwitched = true;
+    }
+  }  
 }

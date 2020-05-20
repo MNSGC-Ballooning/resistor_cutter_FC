@@ -9,6 +9,8 @@
 #include <SPI.h>
 #include <SD.h>
 #include <SoftwareSerial.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 #include <UbloxGPS.h>
 #include <MS5611.h>
 #include <Arduino.h>
@@ -21,6 +23,8 @@
 #define LED_SD 6
 #define LED_GPS 7
 #define CHIP_SELECT 8
+#define ONE_WIRE_BUS 28
+#define TWO_WIRE_BUS 29
 #define PRESSURE_ANALOG_PIN A0
 
 // Intervals
@@ -59,6 +63,8 @@
 #define SLOW_DESCENT_FLOOR 80000        // min altitude for the slow descent state
 #define INIT_ALTITUDE 5000              // altitude at which the state machine begins
 #define RECOVERY_ALTITUDE 7000          // altitude at which the recovery state intializes on descent
+#define MIN_TEMP -60                    // minimum acceptable internal temperature
+#define MAX_TEMP 90                     // maximum acceptable interal temperature
 
 // Velocity Boundaries
 #define MAX_SA_RATE 375                 // maximum velocity (ft/min) that corresponds to a slow ascent state
@@ -111,6 +117,13 @@ float pressureAltitude;
 float pressureRelativeAltitude;
 boolean baroCalibrated = false; // inidicates if the barometer has been calibrated or not
 
+//Dallas Digital Temp Sensors
+OneWire oneWire1(ONE_WIRE_BUS);                 //Temperature sensor wire busses
+OneWire oneWire2(TWO_WIRE_BUS);
+DallasTemperature sensor1(&oneWire1);           //Temperature sensors
+DallasTemperature sensor2(&oneWire2);
+float t1,t2 = -127.00;                          //Temperature values
+
 
 boolean cutterOnA = false,  cutterOnB = false;
 
@@ -120,6 +133,8 @@ void setup() {
   initGPS();            // initialze GPS
 
   initPressure();       // initialize pressure sensor
+
+  initTemperatures();   // initalize temperature sensors
 
   initSD();             // initialize SD card
 
@@ -136,6 +151,8 @@ void loop() {
 
   if(millis() - updateStamp > UPDATE_INTERVAL) {   
     updatePressure();   // update pressure data
+
+    updateTemperatures(); // update temperature sensors
 
     updateTelemetry();  // update GPS data
     

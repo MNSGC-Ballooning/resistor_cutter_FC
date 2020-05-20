@@ -1,6 +1,6 @@
 // Resistor Cutaway Standalone System
 
-// This is the code for the flight computer inside of cut box A, presumably flown with an Arduino Uno
+// This is the code for the main flight computer, presumably flown with a Teensy 3.5 and an SD logger
 // Communications devices still need to be decided and implemented
 
 #define SERIAL_BUFFER_SIZE 32
@@ -25,7 +25,6 @@
 #define ONE_WIRE_BUS 9
 #define TWO_WIRE_BUS 10
 #define PRESSURE_ANALOG_PIN A0
-
 
 // Intervals
 #define FIX_INTERVAL 5000               // GPS with a fix—will flash for 5 seconds
@@ -76,16 +75,16 @@
 
 // Time Stamps
 unsigned long updateStamp = 0;
-unsigned long cutStampA = 0,  cutStampB = 0;  
+unsigned long cutStampB = 0;  
 unsigned long gpsLEDStamp = 0;
 
 // State Machine
 uint8_t state; 
 bool stateSwitched;
 bool maxAltReached = false;
-bool cutStatusA = false;
-bool cutterOnA = false;
-String cutReasonA;
+bool cutStatusB = false;
+boolean cutterOnB = false;
+String cutReasonB;
 String stateString;
 
 // GPS Variables
@@ -128,8 +127,9 @@ void setup() {
 
   initPressure();       // initialize pressure sensor
 
-  initTemperatures();   // initialize temperature sensors
+  initTemperatures();   // initialize temp sensoes
 
+  pinMode(LED_SD,OUTPUT);
   pinMode(LED_GPS,OUTPUT);
 
   pinMode(CUTTER_PIN,OUTPUT);
@@ -143,22 +143,22 @@ void loop() {
   if(millis() - updateStamp > UPDATE_INTERVAL) {   
     updatePressure();   // update pressure data
 
-    updateTemperatures(); // update temperature sensors
+    updateTemperatures(); // update temp data
 
     updateTelemetry();  // update GPS data
+
+    //NEEDED: Function to read data from comms from cutter boxes
     
     stateMachine();     // update the state machine
-
-    //NEEDED: Function to read data from comms from main computer, cut resistor if instructed, then send back a data string
   }
 
   // cut balloon if the master timer expires
   if(millis() > MASTER_INTERVAL*M2MS) {
-    cutResistorOnA();
-    cutReasonA = F("master timer expired");
+    cutResistorOnB;
+    cutReasonB = F("master timer expired");
   }
 
-  if(millis() - cutStampA > CUT_INTERVAL && cutterOnA) cutResistorOffA();
+  if(millis() - cutStampB > CUT_INTERVAL && cutterOnB) cutResistorOffB();
 
   fixLEDSchema();
 
