@@ -12,6 +12,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <UbloxGPS.h>
+#include <RadioHead.h>
 #include <MS5611.h>
 #include <Arduino.h>
 
@@ -53,6 +54,19 @@
 #define NOFIX 0x00
 #define FIX 0x01
 
+//// Comms Addresses
+//#define NETWORKID 1                     // network within which all comms devices will operate
+//#define LOCAL_ADDRESS 1                 // internal network address of the main computer
+//#define CUTTERA_ADDRESS 2               // network address for cutter A
+//#define CUTTERB_ADDRESS  3              // network address for cutter B
+//#define BROADCAST 255                   // network address to broadcast to all nodes
+//
+//// Comms definitions
+//#define FREQUENCY  RF69_915MHZ           // change to RF69_433MHZ if using 433MHz devices
+//#define ENCRYPT   false                 // if set to true, all node will require an encrytion key to talk within the network
+//#define ENCRYPT_KEY "PAPAJOEKNOWSBEST"  // 16 byte key used for all nodes within the network
+//#define USEACK    false                 // if set to true, node will request acknowledgements when sending messages
+
 // Boundaries
 ///////CHANGE BEFORE EACH FLIGHT////////
 #define EASTERN_BOUNDARY -92            // longitudes
@@ -84,6 +98,7 @@ uint8_t state;
 bool stateSwitched;
 bool maxAltReached = false;
 bool cutStatusA = false, cutStatusB = false;
+bool cutterOnA = false,  cutterOnB = false;
 String cutReasonA,  cutReasonB;
 String stateString;
 
@@ -117,15 +132,16 @@ float pressureAltitude;
 float pressureRelativeAltitude;
 boolean baroCalibrated = false; // inidicates if the barometer has been calibrated or not
 
-//Dallas Digital Temp Sensors
+// Dallas Digital Temp Sensors
 OneWire oneWire1(ONE_WIRE_BUS);                 //Temperature sensor wire busses
 OneWire oneWire2(TWO_WIRE_BUS);
 DallasTemperature sensor1(&oneWire1);           //Temperature sensors
 DallasTemperature sensor2(&oneWire2);
 float t1,t2 = -127.00;                          //Temperature values
 
+//// RFM69 Comms Device
+//RFM69 radio;
 
-boolean cutterOnA = false,  cutterOnB = false;
 
 void setup() {
   Serial.begin(9600);   // initialize serial monitor
@@ -149,7 +165,9 @@ void loop() {
 
   gps.update();
 
-  if(millis() - updateStamp > UPDATE_INTERVAL) {   
+  if(millis() - updateStamp > UPDATE_INTERVAL) { 
+    updateStamp = millis();
+      
     updatePressure();   // update pressure data
 
     updateTemperatures(); // update temperature sensors
