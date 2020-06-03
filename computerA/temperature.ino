@@ -1,5 +1,5 @@
 
-void initTemperatures() {
+/*void initTemperatures() {
   // initialize Dallas temperature sensors
   sensor1.begin();
   sensor2.begin();
@@ -81,4 +81,4 @@ bool tempCheck() {
     return false;
   }
 
-}
+}*/

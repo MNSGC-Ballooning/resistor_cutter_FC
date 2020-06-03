@@ -1,47 +1,56 @@
-// Resistor Cutaway Standalone System
-
-// This is the code for the flight computer inside of cut box A, presumably flown with an Arduino Uno
-// Communications devices still need to be decided and implemented
+//============================================================================================================================================
+// MURI Resistor Cutter Box A
+// Written by PJ Collins and Steele Mitchell - coll0792 & mitc0596 Spring 2020
+//============================================================================================================================================
+//
+// Can run autonomously or communicate with a main computer. Will cut when instructed, or on its own if no communication.
+//
+//=============================================================================================================================================
 
 #define SERIAL_BUFFER_SIZE 32
 
 // Libraries
 #include <SPI.h>
 #include <SoftwareSerial.h>
-#include <OneWire.h>
-#include <DallasTemperature.h>
 #include <UbloxGPS.h>
-#include <RFM69.h>
-#include <MS5611.h>
+#include <LatchRelay.h> 
 #include <Arduino.h>
 
+/*  Arduino Uno w/ PCB Shield pin connections:
+     ----------------------------------------------
+    | Component                    | Pins used     |    
+    | ---------------------------------------------|
+    | UBlox Neo m8n                | 0,1           |
+    | LED                          | 7             | 
+    | Bluetooth hc05               | 8,9           |
+    | H-Driver                     | 10,11         |
+    | Latching Relay               | 12,13         |
+    | Thermistor                   | A0            | 
+     ----------------------------------------------
+*/
 
 // Pin Definitions
-#define UBLOX_RX 2
-#define UBLOX_TX 3
-#define CUTTER_PIN 5
-#define LED_SD 6
-#define LED_GPS 7
-#define CHIP_SELECT 8
-#define ONE_WIRE_BUS 9
-#define TWO_WIRE_BUS 10
-#define PRESSURE_ANALOG_PIN A0
-
+#define UBLOX_RX 0
+#define UBLOX_TX 1
+#define LED 7
+#define BLUE_RX 8
+#define BLUE_TX 9
+#define CUTTER_PIN 10
+#define HEAT_ON 12
+#define HEAT_OFF 13
+#define THERM_PIN A0
 
 // Intervals
 #define FIX_INTERVAL 5000               // GPS with a fix—will flash for 5 seconds
 #define NOFIX_INTERVAL 2000             // GPS with no fix—will flash for 2 seconds
-#define GPS_LED_INTERVAL 10000          // GPS LED runs on a 10 second loop
+#define LED_INTERVAL 10000              // GPS LED runs on a 10 second loop
 #define UPDATE_INTERVAL 2000            // update all data and the state machine every 4 seconds
 #define CUT_INTERVAL 30000              // ensure the cutting mechanism is on for 30 seconds
 #define MASTER_INTERVAL 135             // master timer that cuts balloon after 2hr, 15min
-#define PRESSURE_TIMER_INTERVAL 50      // timer that'll cut the balloon 50 minutes after pressure reads 70k feet
 #define ASCENT_INTERVAL 135             // timer that cuts balloon A 2 hours and 15 minutes after ASCENT state initializes
 #define SLOW_DESCENT_INTERVAL 60        // timer that cuts both balloons (as a backup) an hour after SLOW_DESCENT state initializes
 
 // Constants
-#define PA_TO_ATM 1/101325              // PSI to ATM conversion ratio
-#define SEA_LEVEL_PSI 14.7              // average sea level pressure in PSI
 #define M2MS 60000                      // milliseconds per minute
 #define SIZE 10                         // size of arrays that store values
 #define D2R PI/180                      // degrees to radians conversion
@@ -53,19 +62,6 @@
 // Fix statuses
 #define NOFIX 0x00
 #define FIX 0x01
-
-// Comms Addresses
-#define NETWORKID 1                     // network within which all comms devices will operate
-#define LOCAL_ADDRESS 2                 // internal network address of the main computer
-#define MAINCOMP_ADDRESS 2              // network address for cutter A
-#define CUTTERB_ADDRESS  3              // network address for cutter B
-#define BROADCAST 255                   // network address to broadcast to all nodes
-
-// Comms definitions
-#define FREQUENCY  RF69_915MHZ           // change to RF69_433MHZ if using 433MHz devices
-#define ENCRYPT   false                 // if set to true, all node will require an encrytion key to talk within the network
-#define ENCRYPT_KEY "PAPAJOEKNOWSBEST"  // 16 byte key used for all nodes within the network
-#define USEACK    false                 // if set to true, node will request acknowledgements when sending messages
 
 // Boundaries
 ///////CHANGE BEFORE EACH FLIGHT////////
@@ -86,12 +82,10 @@
 #define MIN_FLOAT_RATE -100             // minimum velocity that corresponds to a float state, or maximum for a slow descent state
 #define MIN_SD_RATE -600                // minimum velocity that corresponds to a slow desent state
 
-#define PRESSURE_TIMER_ALTITUDE 70000   // altitude at which the pressure timer begins
-
 // Time Stamps
 unsigned long updateStamp = 0;
 unsigned long cutStampA = 0,  cutStampB = 0;  
-unsigned long gpsLEDStamp = 0;
+unsigned long LEDStamp = 0;
 
 // State Machine
 uint8_t state; 
@@ -115,39 +109,40 @@ float ascentRate;
 float groundSpeed;
 float heading;
 uint8_t sats;
-bool gpsLEDOn = false;
+bool LEDOn = false;
 
-// MS5611 Pressure Sensor Variables
-MS5611 baro;
-float seaLevelPressure;         // in Pascals
-float baroReferencePressure;    // some fun pressure/temperature readings below 
-float baroTemp;                 // non-"raw" readings are in Pa for pressure, C for temp, meters for altitude
-unsigned int pressurePa;
-float pressureAltitude;
-float pressureRelativeAltitude;
-boolean baroCalibrated = false; // inidicates if the barometer has been calibrated or not
+// active heating variables
+float sensTemp;
+bool coldSensor = false;
+LatchRelay sensorHeatRelay(HEAT_ON,HEAT_OFF);        //Declare latching relay objects and related logging variables
+String sensorHeat_Status = "";
 
-//Dallas Digital Temp Sensors
-OneWire oneWire1(ONE_WIRE_BUS);                 //Temperature sensor wire busses
-OneWire oneWire2(TWO_WIRE_BUS);
-DallasTemperature sensor1(&oneWire1);           //Temperature sensors
-DallasTemperature sensor2(&oneWire2);
-float t1,t2 = -127.00;                          //Temperature values
-
-// RFM69 Comms Device
-RFM69 radio;
-
+// Bluetooth comms variables
+SoftwareSerial blueSerial(BLUE_RX, BLUE_TX); // initialize bluetooth serial
+struct data{
+  uint8_t startByte;
+  uint8_t cutterTag;
+  float latitude;
+  float longitude;
+  float Altitude;
+  float AR;
+  uint8_t cutStatus;
+  uint8_t currentState;
+//  uint16_t checksum;
+  uint8_t stopByte;
+}dataPacket;                                 // shortcut to create data object dataPacket
 
 void setup() {
+  
   Serial.begin(9600);   // initialize serial monitor
   
+  blueSerial.begin(9600); // initialize bluetooth serial communication
+    
   initGPS();            // initialze GPS
 
-  initPressure();       // initialize pressure sensor
+  initRelays();        //Initialize Relays
 
-  initTemperatures();   // initialize temperature sensors
-
-  pinMode(LED_GPS,OUTPUT);
+  pinMode(LED,OUTPUT);
 
   pinMode(CUTTER_PIN,OUTPUT);
 
@@ -160,15 +155,16 @@ void loop() {
   if(millis() - updateStamp > UPDATE_INTERVAL) {   
     updateStamp = millis();
     
-    updatePressure();   // update pressure data
-
-    updateTemperatures(); // update temperature sensors
+    actHeat();          //Controls active heating
 
     updateTelemetry();  // update GPS data
     
     stateMachine();     // update the state machine
 
-    //NEEDED: Function to read data from comms from main computer, cut resistor if instructed, then send back a data string
+    sendData();         // send current data to main
+
+    readInstruction();  // read commands from main, cuts if instructed
+
   }
 
   // cut balloon if the master timer expires

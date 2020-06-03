@@ -1,12 +1,13 @@
 // Resistor Cutter functions
 
 void cutResistorOnA() {   // char argument denotes what cutter is being cut
-  
-  // implement individual cutter logic to turn it on
+    digitalWrite(CUTTER_PIN,HIGH);
+    cutStatusA = true;
+    cutterOnA = true;
 }
 
 
 void cutResistorOffA() {
-
-  // implement individual cutter logic to turn it off
+    digitalWrite(CUTTER_PIN,LOW);
+    cutterOnA = false;
 }
