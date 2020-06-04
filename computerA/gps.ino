@@ -49,18 +49,10 @@ void updateTelemetry() {
     // use linear regressions to predict geo-coordinates
     latitude[0] = getNextLat(latitude[1],heading,dt,groundSpeed);
     longitude[0] = getNextLong(longitude[1],latitude[1],heading,dt,groundSpeed);
-
-//    if (abs(alt[1] - pressureAltitude) < 1000 && alt[1] < 80000) {
-//      // only log pressure altitude if it is within 1000 feet of the most recent altitude calculation AND below 80,000 ft (where pressure sensors are reliable)
-//      alt[0] = pressureAltitude;
-//    }
-//    else {
-      // if pressure sensor altitude isn't reliable, find next altitude through a linear regression method
-      alt[0] = getNextAlt(ascentRate,dt,alt[1]);
-//    }
+    alt[0] = getNextAlt(ascentRate,dt,alt[1]);
   }
-  
 }
+  
 
 void checkFix() {
   if(gps.getFixAge() < 4000) {
@@ -99,16 +91,16 @@ bool boundaryCheck() {
 
 void fixLEDSchema() {
   // fix LED timing schema
-  if(millis() - gpsLEDStamp > GPS_LED_INTERVAL && !gpsLEDOn) {
-    gpsLEDStamp = millis();
-    digitalWrite(LED_GPS,HIGH);
-    gpsLEDOn = true;
+  if(millis() - LEDStamp > LED_INTERVAL && !LEDOn) {
+    LEDStamp = millis();
+    digitalWrite(LED,HIGH);
+    LEDOn = true;
   }
-  else if(millis() - gpsLEDStamp > FIX_INTERVAL && fixStatus == FIX && gpsLEDOn) {
-    digitalWrite(LED_GPS,LOW);
+  else if(millis() - LEDStamp > FIX_INTERVAL && fixStatus == FIX && LEDOn) {
+    digitalWrite(LED,LOW);
   }
-  else if(millis() - gpsLEDStamp > NOFIX_INTERVAL && fixStatus == NOFIX && gpsLEDOn) {
-    digitalWrite(LED_GPS,LOW);
+  else if(millis() - LEDStamp > NOFIX_INTERVAL && fixStatus == NOFIX && LEDOn) {
+    digitalWrite(LED,LOW);
   }
   
 }

@@ -1,31 +1,47 @@
-// Resistor Cutaway Standalone System
+//============================================================================================================================================
+// MURI Resistor Cutter Box A
+// Written by PJ Collins and Steele Mitchell - coll0792 & mitc0596 Spring 2020
+//============================================================================================================================================
+//
+// Can run autonomously or communicate with a main computer. Will cut when instructed, or on its own if no communication.
+//
+//=============================================================================================================================================
 
-// This is the code for the flight computer inside of cut box A, presumably flown with an Arduino Uno
-// Communications devices still need to be decided and implemented
+/*  Arduino Uno w/ PCB Shield pin connections:
+     ----------------------------------------------
+    | Component                    | Pins used     |    
+    | ---------------------------------------------|
+    | UBlox Neo m8n                | 0,1           |
+    | LED                          | 7             | 
+    | Bluetooth hc05               | 8,9           |
+    | H-Driver                     | 10,11         |
+    | Latching Relay               | 12,13         |
+    | Thermistor                   | A0            | 
+     ----------------------------------------------
+*/
 
 #define SERIAL_BUFFER_SIZE 32
 
 // Libraries
+// Libraries
 #include <SPI.h>
 #include <SoftwareSerial.h>
-//#include <OneWire.h>
-//#include <DallasTemperature.h>
 #include <UbloxGPS.h>
-//#include <RFM69.h>
-//#include <MS5611.h>
+#include <LatchRelay.h> 
 #include <Arduino.h>
 
-
+ 
 // Pin Definitions
-#define UBLOX_RX 2
-#define UBLOX_TX 3
-#define CUTTER_PIN 5
-#define LED_SD 6
-#define LED_GPS 7
-#define CHIP_SELECT 8
-#define ONE_WIRE_BUS 9
-#define TWO_WIRE_BUS 10
-#define PRESSURE_ANALOG_PIN A0
+#define UBLOX_RX 0
+#define UBLOX_TX 1
+#define LED 7
+#define BLUE_RX 8
+#define BLUE_TX 9
+#define CUTTER_PIN1 10
+// #define CUTTER_PIN2 11
+#define HEAT_ON 12
+#define HEAT_OFF 13
+#define THERM_PIN A0
 
 
 // Intervals
@@ -54,18 +70,6 @@
 #define NOFIX 0x00
 #define FIX 0x01
 
-//// Comms Addresses
-//#define NETWORKID 1                     // network within which all comms devices will operate
-//#define LOCAL_ADDRESS 2                 // internal network address of the main computer
-//#define MAINCOMP_ADDRESS 2              // network address for cutter A
-//#define CUTTERB_ADDRESS  3              // network address for cutter B
-//#define BROADCAST 255                   // network address to broadcast to all nodes
-//
-//// Comms definitions
-//#define FREQUENCY  RF69_915MHZ           // change to RF69_433MHZ if using 433MHz devices
-//#define ENCRYPT   false                 // if set to true, all node will require an encrytion key to talk within the network
-//#define ENCRYPT_KEY "PAPAJOEKNOWSBEST"  // 16 byte key used for all nodes within the network
-//#define USEACK    false                 // if set to true, node will request acknowledgements when sending messages
 
 // Boundaries
 ///////CHANGE BEFORE EACH FLIGHT////////
@@ -99,12 +103,6 @@
 #define THERMISTOR_B A2    
 float t1 = -127.00;                                                    //Temperature initialization values
 float t2 = -127.00;
-//float Tinv1;                                                           // Intermediate temp values needed to calculate the actual tempurature
-//float Tinv2;
-//float adcVal1;
-//float adcVal2;
-//float logR1;
-//float logR2;
 
 // Time Stamps
 unsigned long updateStamp = 0;
@@ -135,31 +133,44 @@ float heading;
 uint8_t sats;
 bool gpsLEDOn = false;
 
-// MS5611 Pressure Sensor Variables
-//MS5611 baro;
-//float seaLevelPressure;         // in Pascals
-//float baroReferencePressure;    // some fun pressure/temperature readings below 
-//float baroTemp;                 // non-"raw" readings are in Pa for pressure, C for temp, meters for altitude
-//unsigned int pressurePa;
-//float pressureAltitude;
-//float pressureRelativeAltitude;
-//boolean baroCalibrated = false; // inidicates if the barometer has been calibrated or not
+// active heating variables
+float sensTemp;
+bool coldSensor = false;
+LatchRelay sensorHeatRelay(HEAT_ON,HEAT_OFF);        //Declare latching relay objects and related logging variables
+String sensorHeat_Status = "";
 
+// Bluetooth comms variables
+SoftwareSerial blueSerial(BLUE_RX, BLUE_TX); // initialize bluetooth serial
+struct data{
+  uint8_t startByte;
+  uint8_t cutterTag;
+  float latitude;
+  float longitude;
+  float Altitude;
+  float AR;
+  uint8_t cutStatus;
+  uint8_t currentState;
+//  uint16_t checksum;
+  uint8_t stopByte;
+}dataPacket;                                 // shortcut to create data object dataPacket
 
-// RFM69 Comms Device
-//RFM69 radio;
+// Autonomous operation variables
+long timeOut;
 
 
 void setup() {
   Serial.begin(9600);   // initialize serial monitor
   
+  blueSerial.begin(9600); // initialize bluetooth serial communication
+    
   initGPS();            // initialze GPS
 
-//  initPressure();       // initialize pressure sensor
+  initRelays();        //Initialize Relays
 
-  pinMode(LED_GPS,OUTPUT);
+  pinMode(LED,OUTPUT);
 
-  pinMode(CUTTER_PIN,OUTPUT);
+  pinMode(CUTTER_PIN1,OUTPUT);
+  // pinMode(CUTTER_PIN2,OUTPUT);
 
 }
 
@@ -170,15 +181,23 @@ void loop() {
   if(millis() - updateStamp > UPDATE_INTERVAL) {   
     updateStamp = millis();
     
-//    updatePressure();   // update pressure data
-
-    updateTemperatures(); // update temperature sensors
+    actHeat();          //Controls active heating
 
     updateTelemetry();  // update GPS data
     
     stateMachine();     // update the state machine
 
-    //NEEDED: Function to read data from comms from main computer, cut resistor if instructed, then send back a data string
+    if(blueSerial.available()){ // want this to be "if the comms are working" - is this correct?
+
+      sendData();         // send current data to main
+
+      readInstruction();  // read commands from main, cuts if instructed
+
+      timeOut = 0;        // resets disconnect time
+    }
+    
+    else timeOut+=UPDATE_INTERVAL; // add to disconnected time
+
   }
 
   // cut balloon if the master timer expires
