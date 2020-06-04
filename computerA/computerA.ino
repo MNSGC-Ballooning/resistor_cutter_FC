@@ -8,11 +8,11 @@
 // Libraries
 #include <SPI.h>
 #include <SoftwareSerial.h>
-#include <OneWire.h>
-#include <DallasTemperature.h>
+//#include <OneWire.h>
+//#include <DallasTemperature.h>
 #include <UbloxGPS.h>
-#include <RFM69.h>
-#include <MS5611.h>
+//#include <RFM69.h>
+//#include <MS5611.h>
 #include <Arduino.h>
 
 
@@ -54,18 +54,18 @@
 #define NOFIX 0x00
 #define FIX 0x01
 
-// Comms Addresses
-#define NETWORKID 1                     // network within which all comms devices will operate
-#define LOCAL_ADDRESS 2                 // internal network address of the main computer
-#define MAINCOMP_ADDRESS 2              // network address for cutter A
-#define CUTTERB_ADDRESS  3              // network address for cutter B
-#define BROADCAST 255                   // network address to broadcast to all nodes
-
-// Comms definitions
-#define FREQUENCY  RF69_915MHZ           // change to RF69_433MHZ if using 433MHz devices
-#define ENCRYPT   false                 // if set to true, all node will require an encrytion key to talk within the network
-#define ENCRYPT_KEY "PAPAJOEKNOWSBEST"  // 16 byte key used for all nodes within the network
-#define USEACK    false                 // if set to true, node will request acknowledgements when sending messages
+//// Comms Addresses
+//#define NETWORKID 1                     // network within which all comms devices will operate
+//#define LOCAL_ADDRESS 2                 // internal network address of the main computer
+//#define MAINCOMP_ADDRESS 2              // network address for cutter A
+//#define CUTTERB_ADDRESS  3              // network address for cutter B
+//#define BROADCAST 255                   // network address to broadcast to all nodes
+//
+//// Comms definitions
+//#define FREQUENCY  RF69_915MHZ           // change to RF69_433MHZ if using 433MHz devices
+//#define ENCRYPT   false                 // if set to true, all node will require an encrytion key to talk within the network
+//#define ENCRYPT_KEY "PAPAJOEKNOWSBEST"  // 16 byte key used for all nodes within the network
+//#define USEACK    false                 // if set to true, node will request acknowledgements when sending messages
 
 // Boundaries
 ///////CHANGE BEFORE EACH FLIGHT////////
@@ -87,6 +87,24 @@
 #define MIN_SD_RATE -600                // minimum velocity that corresponds to a slow desent state
 
 #define PRESSURE_TIMER_ALTITUDE 70000   // altitude at which the pressure timer begins
+
+//Thermistor
+#define C2K 273.15
+#define ADC_MAX 8196                                                    // The maximum adc value given to the thermistor, should be 8196 for a teensy and 1024 for an Arduino
+#define CONST_A 0.001125308852122
+#define CONST_B 0.000234711863267                                       // A, B, and C are constants used for a 10k resistor and 10k thermistor for the steinhart-hart equation
+#define CONST_C 0.000000085663516                                       // NOTE: These values change when the thermistor and/or resistor change value, so if that happens, more research needs to be done on those constants
+#define CONST_R 10000       
+#define THERMISTOR_A A1
+#define THERMISTOR_B A2    
+float t1 = -127.00;                                                    //Temperature initialization values
+float t2 = -127.00;
+//float Tinv1;                                                           // Intermediate temp values needed to calculate the actual tempurature
+//float Tinv2;
+//float adcVal1;
+//float adcVal2;
+//float logR1;
+//float logR2;
 
 // Time Stamps
 unsigned long updateStamp = 0;
@@ -118,24 +136,18 @@ uint8_t sats;
 bool gpsLEDOn = false;
 
 // MS5611 Pressure Sensor Variables
-MS5611 baro;
-float seaLevelPressure;         // in Pascals
-float baroReferencePressure;    // some fun pressure/temperature readings below 
-float baroTemp;                 // non-"raw" readings are in Pa for pressure, C for temp, meters for altitude
-unsigned int pressurePa;
-float pressureAltitude;
-float pressureRelativeAltitude;
-boolean baroCalibrated = false; // inidicates if the barometer has been calibrated or not
+//MS5611 baro;
+//float seaLevelPressure;         // in Pascals
+//float baroReferencePressure;    // some fun pressure/temperature readings below 
+//float baroTemp;                 // non-"raw" readings are in Pa for pressure, C for temp, meters for altitude
+//unsigned int pressurePa;
+//float pressureAltitude;
+//float pressureRelativeAltitude;
+//boolean baroCalibrated = false; // inidicates if the barometer has been calibrated or not
 
-//Dallas Digital Temp Sensors
-OneWire oneWire1(ONE_WIRE_BUS);                 //Temperature sensor wire busses
-OneWire oneWire2(TWO_WIRE_BUS);
-DallasTemperature sensor1(&oneWire1);           //Temperature sensors
-DallasTemperature sensor2(&oneWire2);
-float t1,t2 = -127.00;                          //Temperature values
 
 // RFM69 Comms Device
-RFM69 radio;
+//RFM69 radio;
 
 
 void setup() {
@@ -143,9 +155,7 @@ void setup() {
   
   initGPS();            // initialze GPS
 
-  initPressure();       // initialize pressure sensor
-
-  initTemperatures();   // initialize temperature sensors
+//  initPressure();       // initialize pressure sensor
 
   pinMode(LED_GPS,OUTPUT);
 
@@ -160,7 +170,7 @@ void loop() {
   if(millis() - updateStamp > UPDATE_INTERVAL) {   
     updateStamp = millis();
     
-    updatePressure();   // update pressure data
+//    updatePressure();   // update pressure data
 
     updateTemperatures(); // update temperature sensors
 

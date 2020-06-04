@@ -50,14 +50,14 @@ void updateTelemetry() {
     latitude[0] = getNextLat(latitude[1],heading,dt,groundSpeed);
     longitude[0] = getNextLong(longitude[1],latitude[1],heading,dt,groundSpeed);
 
-    if (abs(alt[1] - pressureAltitude) < 1000 && alt[1] < 80000) {
-      // only log pressure altitude if it is within 1000 feet of the most recent altitude calculation AND below 80,000 ft (where pressure sensors are reliable)
-      alt[0] = pressureAltitude;
-    }
-    else {
+//    if (abs(alt[1] - pressureAltitude) < 1000 && alt[1] < 80000) {
+//      // only log pressure altitude if it is within 1000 feet of the most recent altitude calculation AND below 80,000 ft (where pressure sensors are reliable)
+//      alt[0] = pressureAltitude;
+//    }
+//    else {
       // if pressure sensor altitude isn't reliable, find next altitude through a linear regression method
       alt[0] = getNextAlt(ascentRate,dt,alt[1]);
-    }
+//    }
   }
   
 }
