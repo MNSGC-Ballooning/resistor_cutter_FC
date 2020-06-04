@@ -35,7 +35,8 @@
 #define LED 7
 #define BLUE_RX 8
 #define BLUE_TX 9
-#define CUTTER_PIN 10
+#define CUTTER_PIN1 10
+// #define CUTTER_PIN2 11
 #define HEAT_ON 12
 #define HEAT_OFF 13
 #define THERM_PIN A0
@@ -132,6 +133,9 @@ struct data{
   uint8_t stopByte;
 }dataPacket;                                 // shortcut to create data object dataPacket
 
+// Autonomous operation variables
+long timeOut;
+
 void setup() {
   
   Serial.begin(9600);   // initialize serial monitor
@@ -144,7 +148,8 @@ void setup() {
 
   pinMode(LED,OUTPUT);
 
-  pinMode(CUTTER_PIN,OUTPUT);
+  pinMode(CUTTER_PIN1,OUTPUT);
+  // pinMode(CUTTER_PIN2,OUTPUT);
 
 }
 
@@ -161,9 +166,16 @@ void loop() {
     
     stateMachine();     // update the state machine
 
-    sendData();         // send current data to main
+    if(blueSerial.available()){ // want this to be "if the comms are working" - is this correct?
 
-    readInstruction();  // read commands from main, cuts if instructed
+      sendData();         // send current data to main
+
+      readInstruction();  // read commands from main, cuts if instructed
+
+      timeOut = 0;        // resets disconnect time
+    }
+    
+    else timeOut+=UPDATE_INTERVAL; // add to disconnected time
 
   }
 

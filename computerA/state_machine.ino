@@ -41,14 +41,14 @@ void stateMachine() {
 
       static unsigned long ascentStamp = millis();
 
-      // cut balloon A if the ascent timer runs out
+      // cut balloon A if the ascent timer runs out // NEED TO ASK MAIN FOR CONFIRMATION BEFORE CUTTING
       if(millis() - ascentStamp > ASCENT_INTERVAL*M2MS) {
-        cutResistorOnA();
+        requestCut();
         cutReasonA = F("expired ascent timer");
       }
       // cut balloon A if the termination altitude is reached
       if (alt[0] > SLOW_DESCENT_CEILING) {
-        cutResistorOnA();
+        requestCut();
         cutReasonA = F("reached termination altitude");
       }
 
@@ -60,7 +60,7 @@ void stateMachine() {
       stateString = F("Slow Ascent");
 
       // cut both balloons as the stack is ascending too slowly
-      cutResistorOnA();
+      requestCut();
       cutReasonA = F("slow ascent state");
 
       break;
@@ -77,7 +77,7 @@ void stateMachine() {
         SDTerminationCounter++;
 
         if(SDTerminationCounter >= 10) {
-          cutResistorOnA();
+          requestCut();
           cutReasonA = F("reached slow descent floor");
         }
       }
@@ -98,7 +98,7 @@ void stateMachine() {
         if(floorAltitudeCounter >= 10 && !cutCheck) {
           floorAltitudeCounter = 0;
 
-          cutResistorOnA();
+          requestCut();
           cutReasonA = F("descent state cut check");
         }
       }
@@ -111,7 +111,7 @@ void stateMachine() {
       stateString = F("Float");
 
       // cut both balloons as the stack is in a float state
-      cutResistorOnA();
+      requestCut();
       cutReasonA = F("float state");      
 
       break;
@@ -122,7 +122,7 @@ void stateMachine() {
       stateString = F("Out of Boundary");
       
       // cut both balloons as the stack is out of the predefined flight boundaries
-      cutResistorOnA();
+      requestCut();
       // cut reasons are more specifically defined in the boundaryCheck() function
 
       break;
@@ -133,7 +133,7 @@ void stateMachine() {
       stateString = F("Temperature Failure");
 
       // cut balloon as temps are at critical levels
-      cutResistorOnA();
+      cutResistorOnA(); // rather than requestCut, as this cannot be confirmed by main
 
       // cut reasons defined within tempCheck() function
 

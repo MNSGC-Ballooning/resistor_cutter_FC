@@ -11,13 +11,13 @@ void sendData(){
 //  dataPacket.checksum = 
   dataPacket.stopByte = 0x53;
 
-  byte dataHolder[21] = {0};              // define output array (change 21 to 23 if using checksum --> total number of bits increases to 23)
+  byte dataHolder[21] = {0};              // define output array (change 21 to 23 if using checksum --> total number of bytes increases to 23)
   memcpy(&dataHolder, &dataPacket, 21);   // pass data packet to output array as bytes 
   blueSerial.write(dataHolder,21);        // write output array to main computer
 }
 
 void readInstruction(){
-  byte input = 0;               // initialize data collection byte array
+  byte input = 0;               // initialize data collection byte
   if(blueSerial.available()>0)
   {
     input = blueSerial.read();  // saves byte sent from main
@@ -25,5 +25,15 @@ void readInstruction(){
       cutResistorOnA();
     else if (input == 0x53)     // end cut command
       cutResistorOffA();
+  }
+}
+
+void requestCut(){
+  if(blueSerial.available()){ // needs to check if sending will work - does this do that?
+    sendData();               
+    readInstruction();
+  }
+  else if(!blueSerial.available() && timeOut > 10*M2MS){ // if comms have been down for 10+ minutes, cuts
+    cutResistorOnA();
   }
 }
