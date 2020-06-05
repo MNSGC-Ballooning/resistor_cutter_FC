@@ -1,7 +1,7 @@
 // GPS functions
 
 void initGPS() {
-  ubloxSerial.begin(UBLOX_BAUD);                                       //initiate GPS
+  Serial.begin(UBLOX_BAUD);                                       //initiate GPS
   gps.init();                                                          //Initiate GPS Data lines
 
   Serial.println("GPS initialized...");
@@ -10,7 +10,6 @@ void initGPS() {
     Serial.println("Airborne mode set...");
   }
   Serial.println("GPS configured");
-  
 }
 
 
@@ -116,7 +115,7 @@ float getAscentRate(float alt1, float alt2, long time1, long time2) {
     velocity = ((alt1-alt2)/(time1-time2)) * 60;
   }
 
-  return velocity;      // returns a vleocity in feet/minute
+  return velocity;      // returns a velocity in feet/minute
 }
 
 
@@ -133,7 +132,7 @@ float getNextAlt(float ascentRate, float dt, float currentAlt) {
 float getGroundSpeed(float lat1, float lat2, float long1, float long2, float time1, float time2) {
   float groundSpeed = 0;
 
-  float miles_per_lat = 69; // roughly 69 miles per degree latitude
+  float miles_per_lat = 69; // roughly 69 miles per degree latitude // nice
   float miles_per_long = cos(lat1*D2R)*69.172; // miles per degree longitude depending on the current latitude
 
   time1 /= 1000;  // divide milliseconds into seconds

@@ -7,15 +7,6 @@
 //
 //=============================================================================================================================================
 
-#define SERIAL_BUFFER_SIZE 32
-
-// Libraries
-#include <SPI.h>
-#include <SoftwareSerial.h>
-#include <UbloxGPS.h>
-#include <LatchRelay.h> 
-#include <Arduino.h>
-
 /*  Arduino Uno w/ PCB Shield pin connections:
      ----------------------------------------------
     | Component                    | Pins used     |    
@@ -29,6 +20,16 @@
      ----------------------------------------------
 */
 
+#define SERIAL_BUFFER_SIZE 32
+
+// Libraries
+#include <SPI.h>
+#include <SoftwareSerial.h>
+#include <UbloxGPS.h>
+#include <LatchRelay.h> 
+#include <Arduino.h>
+
+ 
 // Pin Definitions
 #define UBLOX_RX 0
 #define UBLOX_TX 1
@@ -36,22 +37,26 @@
 #define BLUE_RX 8
 #define BLUE_TX 9
 #define CUTTER_PIN1 10
-// #define CUTTER_PIN2 11
+// #define CUTTER_PIN2 11 // not actually 11 but pick a pin -_/(o_o)\_-
 #define HEAT_ON 12
 #define HEAT_OFF 13
 #define THERM_PIN A0
+
 
 // Intervals
 #define FIX_INTERVAL 5000               // GPS with a fix—will flash for 5 seconds
 #define NOFIX_INTERVAL 2000             // GPS with no fix—will flash for 2 seconds
 #define LED_INTERVAL 10000              // GPS LED runs on a 10 second loop
-#define UPDATE_INTERVAL 2000            // update all data and the state machine every 4 seconds
+#define UPDATE_INTERVAL 1000            // update all data and the state machine every 1 second
 #define CUT_INTERVAL 30000              // ensure the cutting mechanism is on for 30 seconds
 #define MASTER_INTERVAL 135             // master timer that cuts balloon after 2hr, 15min
+#define PRESSURE_TIMER_INTERVAL 50      // timer that'll cut the balloon 50 minutes after pressure reads 70k feet
 #define ASCENT_INTERVAL 135             // timer that cuts balloon A 2 hours and 15 minutes after ASCENT state initializes
 #define SLOW_DESCENT_INTERVAL 60        // timer that cuts both balloons (as a backup) an hour after SLOW_DESCENT state initializes
 
 // Constants
+#define PA_TO_ATM 1/101325              // PSI to ATM conversion ratio
+#define SEA_LEVEL_PSI 14.7              // average sea level pressure in PSI
 #define M2MS 60000                      // milliseconds per minute
 #define SIZE 10                         // size of arrays that store values
 #define D2R PI/180                      // degrees to radians conversion
@@ -63,6 +68,7 @@
 // Fix statuses
 #define NOFIX 0x00
 #define FIX 0x01
+
 
 // Boundaries
 ///////CHANGE BEFORE EACH FLIGHT////////
@@ -76,12 +82,28 @@
 #define RECOVERY_ALTITUDE 7000          // altitude at which the recovery state intializes on descent
 #define MIN_TEMP -60                    // minimum acceptable internal temperature
 #define MAX_TEMP 90                     // maximum acceptable interal temperature
+#define LOW_TEMP -10                    // activation temp for heating pads
+#define HIGH_TEMP 0                     // deactivation temp for heating pads
 
 // Velocity Boundaries
 #define MAX_SA_RATE 375                 // maximum velocity (ft/min) that corresponds to a slow ascent state
 #define MAX_FLOAT_RATE 100              // maximum velocity that corresponds to a float state, or minimum for a slow ascent state
 #define MIN_FLOAT_RATE -100             // minimum velocity that corresponds to a float state, or maximum for a slow descent state
 #define MIN_SD_RATE -600                // minimum velocity that corresponds to a slow desent state
+
+#define PRESSURE_TIMER_ALTITUDE 70000   // altitude at which the pressure timer begins
+
+//Thermistor
+#define C2K 273.15
+#define ADC_MAX 8196                                                    // The maximum adc value given to the thermistor, should be 8196 for a teensy and 1024 for an Arduino
+#define CONST_A 0.001125308852122
+#define CONST_B 0.000234711863267                                       // A, B, and C are constants used for a 10k resistor and 10k thermistor for the steinhart-hart equation
+#define CONST_C 0.000000085663516                                       // NOTE: These values change when the thermistor and/or resistor change value, so if that happens, more research needs to be done on those constants
+#define CONST_R 10000       
+#define THERMISTOR_A A1
+#define THERMISTOR_B A2    
+float t1 = -127.00;                                                    //Temperature initialization values
+float t2 = -127.00;
 
 // Time Stamps
 unsigned long updateStamp = 0;
@@ -98,8 +120,7 @@ String cutReasonA;
 String stateString;
 
 // GPS Variables
-SoftwareSerial ubloxSerial(UBLOX_RX,UBLOX_TX);
-UbloxGPS gps(&ubloxSerial);
+UbloxGPS gps(&Serial);
 float alt[SIZE];                  // altitude in feet, also there exists a queue library we can use instead
 unsigned long timeStamp[SIZE];    // time stamp array that can be used with alt array to return a velocity
 float latitude[SIZE];
@@ -129,15 +150,25 @@ struct data{
   float AR;
   uint8_t cutStatus;
   uint8_t currentState;
-//  uint16_t checksum;
+  uint16_t checksum;
   uint8_t stopByte;
 }dataPacket;                                 // shortcut to create data object dataPacket
 
+struct input{
+  uint8_t startByte;
+  uint8_t cutterTag;
+  uint8_t command;
+  // float pressure;
+  uint16_t checksum;
+  uint8_t stopByte;
+}inputPacket;
+
 // Autonomous operation variables
 long timeOut;
+bool autonomousNow = false;
+
 
 void setup() {
-  
   Serial.begin(9600);   // initialize serial monitor
   
   blueSerial.begin(9600); // initialize bluetooth serial communication
@@ -159,6 +190,8 @@ void loop() {
 
   if(millis() - updateStamp > UPDATE_INTERVAL) {   
     updateStamp = millis();
+
+    updateTemperatures();
     
     actHeat();          //Controls active heating
 
@@ -166,17 +199,12 @@ void loop() {
     
     stateMachine();     // update the state machine
 
-    if(blueSerial.available()){ // want this to be "if the comms are working" - is this correct?
+    sendData();         // send current data to main
 
-      sendData();         // send current data to main
+    readInstruction();  // read commands from main, cuts if instructed
 
-      readInstruction();  // read commands from main, cuts if instructed
-
-      timeOut = 0;        // resets disconnect time
-    }
-    
-    else timeOut+=UPDATE_INTERVAL; // add to disconnected time
-
+    if( !readInstruction()) timeOut+= UPDATE_INTERVAL;
+    if( timeOut > 2*M2MS) autonomousNow = true;
   }
 
   // cut balloon if the master timer expires
