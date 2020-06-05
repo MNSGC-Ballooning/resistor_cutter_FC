@@ -1,13 +1,56 @@
-// tab for functions relevant to usage of the RFM69HCW
-// currently set up for use with the RFM69.h library, but this will have to be rewritten to work with the radiohead library
+void sendData(){
+  // recording current data
+  dataPacket.startByte = 0x42; 
+  dataPacket.cutterTag = 'B';
+  dataPacket.latitude = gps.getLat();
+  dataPacket.longitude = gps.getLon();
+  dataPacket.Altitude = gps.getAlt_feet();
+  dataPacket.AR = ascentRate;
+  dataPacket.cutStatus = cutStatusB;
+  dataPacket.currentState = state;
+  dataPacket.checksum = 0;
+  dataPacket.stopByte = 0x53;
 
-//void initRadio() {
-//  radio.initialize(FREQUENCY, LOCAL_ADDRESS, NETWORKID);  // initialze the comms device
-//  radio.setHighPower();   // always use for RFM69HCW
-//
-//  if(ENCRYPT) radio.encrypt(ENCRYPT_KEY); // encrypt the radio network if requested
-//
-//  Serial.print("Node ");  // verify to user that the local node has been initialized
-//  Serial.print(LOCAL_ADDRESS,DEC);
-//  Serial.println(" initialized.");
-//}
+  byte dataHolder[23] = {0};              // define output array (change 21 to 23 if using checksum --> total number of bytes increases to 23)
+  memcpy(&dataHolder, &dataPacket, 20);   // pass data packet to output array as bytes 
+
+  for( uint8_t i=0; i<20; i++) dataPacket.checksum+=dataHolder[i];
+
+  byte extraStuff[2] = {0};
+  memcpy(&extraStuff, &dataPacket.checksum, 2);
+  dataHolder[20] = extraStuff[0];
+  dataHolder[21] = extraStuff[1];
+  dataHolder[22] = 0x53;
+  
+  blueSerial.write(dataHolder,23);        // write output array to main computer
+}
+
+bool readInstruction(){
+  byte inputHolder[10] = {0};               // initialize data collection byte
+  uint16_t checksumCheck = 0;
+  
+        if(blueSerial.available()>9) 
+        {
+          for(int i=0; i<10; i++)
+          {
+            inputHolder[i] = blueSerial.read(); // saves each byte into byte array input
+            if (i<7) checksumCheck += inputHolder[i];
+          }
+          memcpy(&inputPacket,&inputHolder,10); // copies input onto struct dataPacket1, a readable format
+        }
+      
+    if(inputPacket.checksum != checksumCheck) return false;
+    if((inputPacket.startByte != 0x42) || (inputPacket.stopByte != 0x53)) return false;
+    
+    if(inputPacket.command == 0x25 && inputPacket.cutterTag == 'A')           // cut command
+      cutResistorOnB();
+    else
+      cutResistorOffB();
+
+    timeOut = 0;
+    return true;
+  }
+
+  void requestCut(){
+    if(autonomousNow && cutterOnB) cutResistorOnB();
+  }

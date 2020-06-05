@@ -16,13 +16,12 @@
     | Bluetooth hc05               | 8,9           |
     | H-Driver                     | 10,11         |
     | Latching Relay               | 12,13         |
-    | Thermistor                   | A0            | 
+    | Thermistors                  | A0, A1        | 
      ----------------------------------------------
 */
 
 #define SERIAL_BUFFER_SIZE 32
 
-// Libraries
 // Libraries
 #include <SPI.h>
 #include <SoftwareSerial.h>
@@ -38,17 +37,18 @@
 #define BLUE_RX 8
 #define BLUE_TX 9
 #define CUTTER_PIN1 10
-// #define CUTTER_PIN2 11
+// #define CUTTER_PIN2 11 // not actually 11 but pick a pin -_/(o_o)\_-
 #define HEAT_ON 12
 #define HEAT_OFF 13
-#define THERM_PIN A0
+#define THERMISTOR_A A0
+#define THERMISTOR_B A1 
 
 
 // Intervals
 #define FIX_INTERVAL 5000               // GPS with a fix—will flash for 5 seconds
 #define NOFIX_INTERVAL 2000             // GPS with no fix—will flash for 2 seconds
-#define GPS_LED_INTERVAL 10000          // GPS LED runs on a 10 second loop
-#define UPDATE_INTERVAL 2000            // update all data and the state machine every 4 seconds
+#define LED_INTERVAL 10000              // GPS LED runs on a 10 second loop
+#define UPDATE_INTERVAL 1000            // update all data and the state machine every 1 second
 #define CUT_INTERVAL 30000              // ensure the cutting mechanism is on for 30 seconds
 #define MASTER_INTERVAL 135             // master timer that cuts balloon after 2hr, 15min
 #define PRESSURE_TIMER_INTERVAL 50      // timer that'll cut the balloon 50 minutes after pressure reads 70k feet
@@ -83,6 +83,8 @@
 #define RECOVERY_ALTITUDE 7000          // altitude at which the recovery state intializes on descent
 #define MIN_TEMP -60                    // minimum acceptable internal temperature
 #define MAX_TEMP 90                     // maximum acceptable interal temperature
+#define LOW_TEMP -10                    // activation temp for heating pads
+#define HIGH_TEMP 0                     // deactivation temp for heating pads
 
 // Velocity Boundaries
 #define MAX_SA_RATE 375                 // maximum velocity (ft/min) that corresponds to a slow ascent state
@@ -98,16 +100,14 @@
 #define CONST_A 0.001125308852122
 #define CONST_B 0.000234711863267                                       // A, B, and C are constants used for a 10k resistor and 10k thermistor for the steinhart-hart equation
 #define CONST_C 0.000000085663516                                       // NOTE: These values change when the thermistor and/or resistor change value, so if that happens, more research needs to be done on those constants
-#define CONST_R 10000       
-#define THERMISTOR_A A1
-#define THERMISTOR_B A2    
+#define CONST_R 10000        
 float t1 = -127.00;                                                    //Temperature initialization values
 float t2 = -127.00;
 
 // Time Stamps
 unsigned long updateStamp = 0;
 unsigned long cutStampA = 0,  cutStampB = 0;  
-unsigned long gpsLEDStamp = 0;
+unsigned long LEDStamp = 0;
 
 // State Machine
 uint8_t state; 
@@ -119,8 +119,7 @@ String cutReasonA;
 String stateString;
 
 // GPS Variables
-SoftwareSerial ubloxSerial(UBLOX_RX,UBLOX_TX);
-UbloxGPS gps(&ubloxSerial);
+UbloxGPS gps(&Serial);
 float alt[SIZE];                  // altitude in feet, also there exists a queue library we can use instead
 unsigned long timeStamp[SIZE];    // time stamp array that can be used with alt array to return a velocity
 float latitude[SIZE];
@@ -131,7 +130,7 @@ float ascentRate;
 float groundSpeed;
 float heading;
 uint8_t sats;
-bool gpsLEDOn = false;
+bool LEDOn = false;
 
 // active heating variables
 float sensTemp;
@@ -150,12 +149,22 @@ struct data{
   float AR;
   uint8_t cutStatus;
   uint8_t currentState;
-//  uint16_t checksum;
+  uint16_t checksum;
   uint8_t stopByte;
 }dataPacket;                                 // shortcut to create data object dataPacket
 
+struct input{
+  uint8_t startByte;
+  uint8_t cutterTag;
+  uint8_t command;
+  // float pressure;
+  uint16_t checksum;
+  uint8_t stopByte;
+}inputPacket;
+
 // Autonomous operation variables
 long timeOut;
+bool autonomousNow = false;
 
 
 void setup() {
@@ -180,6 +189,8 @@ void loop() {
 
   if(millis() - updateStamp > UPDATE_INTERVAL) {   
     updateStamp = millis();
+
+    updateTemperatures();
     
     actHeat();          //Controls active heating
 
@@ -187,17 +198,12 @@ void loop() {
     
     stateMachine();     // update the state machine
 
-    if(blueSerial.available()){ // want this to be "if the comms are working" - is this correct?
+    sendData();         // send current data to main
 
-      sendData();         // send current data to main
+    readInstruction();  // read commands from main, cuts if instructed
 
-      readInstruction();  // read commands from main, cuts if instructed
-
-      timeOut = 0;        // resets disconnect time
-    }
-    
-    else timeOut+=UPDATE_INTERVAL; // add to disconnected time
-
+    if( !readInstruction()) timeOut+= UPDATE_INTERVAL;
+    if( timeOut > 2*M2MS) autonomousNow = true;
   }
 
   // cut balloon if the master timer expires

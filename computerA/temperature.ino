@@ -14,12 +14,7 @@ void updateTemperatures() {
 
 bool checkTempReading(float temp) {
   // function to check if a temp sensor's recorded temperatures is valid
-  if(temp < -120) { //-127 degrees C designates a temp sensor issue, so check for that (with some room for error)
-    return false;
-  }
-  else {
-    return true;
-  }
+  return !(temp < -120); //-127 degrees C designates a temp sensor issue, so check for that (with some room for error)
 }
 
 

@@ -1,30 +1,20 @@
-
-void initTemperatures() {
-  // initialize Dallas temperature sensors
-  sensor1.begin();
-  sensor2.begin();
-}
-
-
 void updateTemperatures() {
-  // request temperatures from the Dallas sensors
-  sensor1.requestTemperatures();
-  sensor2.requestTemperatures();
+  // First, temperature
+  t1 = analogRead(THERMISTOR_A);                                   // All of these calculations have to do with the Steinhart-Hart equations and setting them up properly
+  t2 = analogRead(THERMISTOR_B);
+  t1 = log(((ADC_MAX/t1)-1)*CONST_R);
+  t2 = log(((ADC_MAX/t2)-1)*CONST_R);
+  t1 = CONST_A+CONST_B*t1+CONST_C*t1*t1*t1;
+  t2 = CONST_A+CONST_B*t2+CONST_C*t2*t2*t2;
+  t1 = 1/t1-C2K;                                                  // The final temperatures for both transistors in Celsius
+  t2 = 1/t2-C2K;
 
-  // find the temperatures in Celsius
-  t1 = sensor1.getTempCByIndex(0);
-  t2 = sensor2.getTempCByIndex(0);
 }
 
 
 bool checkTempReading(float temp) {
   // function to check if a temp sensor's recorded temperatures is valid
-  if(temp < -120) { //-127 degrees C designates a temp sensor issue, so check for that (with some room for error)
-    return false;
-  }
-  else {
-    return true;
-  }
+  return !(temp < -120); //-127 degrees C designates a temp sensor issue, so check for that (with some room for error)
 }
 
 
@@ -33,17 +23,15 @@ bool tempCheck() {
   // there's probably a better way to work through this logic
   if(checkTempReading(t1) && checkTempReading(t2)){
     // if both temp sensors are working
-    if(t1 < MIN_TEMP && t2 < MIN_TEMP) {
+    if((t1 < MIN_TEMP) && (t2 < MIN_TEMP)) {
        cutReasonB = F("below min temp");
        return true;
     }
-    else if(t1 > MAX_TEMP && t2 > MAX_TEMP) {
+    if((t1 > MAX_TEMP) && (t2 > MAX_TEMP)) {
       cutReasonB = F("above max temp");
       return true;
     }
-    else {
-      return false ;       
-    }
+     return false ;       
   }
 
   if(checkTempReading(t1) && !checkTempReading(t2)){
@@ -52,13 +40,11 @@ bool tempCheck() {
        cutReasonB = F("below min temp");
        return true;
     }
-    else if(t1 > MAX_TEMP) {
+    if(t1 > MAX_TEMP) {
       cutReasonB = F("above max temp");
       return true;
     }
-    else {
       return false ;       
-    }
   }
 
   if(!checkTempReading(t1) && checkTempReading(t2)){
@@ -67,13 +53,11 @@ bool tempCheck() {
        cutReasonB = F("below min temp");
        return true;
     }
-    else if(t2 > MAX_TEMP) {
+    if(t2 > MAX_TEMP) {
       cutReasonB = F("above max temp");
       return true;
     }
-    else {
-      return false ;       
-    }
+    return false;       
   }
 
   if(!checkTempReading(t1) && !checkTempReading(t2)){
