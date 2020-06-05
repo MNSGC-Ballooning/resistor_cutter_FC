@@ -1,7 +1,7 @@
 // GPS functions
 
 void initGPS() {
-  ubloxSerial.begin(UBLOX_BAUD);                                       //initiate GPS
+  Serial1.begin(UBLOX_BAUD);                                       //initiate GPS
   gps.init();                                                          //Initiate GPS Data lines
 
   Serial.println("GPS initialized...");
@@ -16,7 +16,7 @@ void initGPS() {
 
 void updateTelemetry() {
 
-  for(int i=0; i++; i<(SIZE-1)) {
+  for(int i=0; i<(SIZE-1); i++) {
     // "push back" array indices by one to make room for new values
     alt[i+1] = alt[i];
     latitude[i+1] = latitude[i];
@@ -28,7 +28,7 @@ void updateTelemetry() {
   timeStamp[0] = millis();  // get most recent time stamp
   sats = gps.getSats();     // get most recent number of satellites
 
-  float dt = (timeStamp[0] - timeStamp[9])/1000;
+  dt = (timeStamp[0] - timeStamp[9])/1000;
 
   checkFix();
 
@@ -37,33 +37,30 @@ void updateTelemetry() {
     latitude[0] = gps.getLat();
     longitude[0] = gps.getLon();
     alt[0] =  gps.getAlt_feet();
-
+  }
+  
     if(fixStatus[0] == FIX && fixStatus[9] == FIX) {
       // only get these values if the GPS had a fix for inputs
       ascentRate = getAscentRate(alt[0],alt[9],timeStamp[0],timeStamp[9]);
       groundSpeed = getGroundSpeed(latitude[0],latitude[9],longitude[0],longitude[9],timeStamp[0],timeStamp[9]);
       heading = getHeading(latitude[0],latitude[9],longitude[0],longitude[9]);
     }
-  }
-  else {
-    // use linear regressions to predict geo-coordinates
-    //heading = getHeading(latitude[1],latitude[9],longitude[1],longitude[9]);
-    //groundSpeed = getGroundSpeed(latitude[1],latitude[9],longitude[1],longitude[9],timeStamp[1],timeStamp[9]);// I think we have to use heading and ground speed here, but they arent set, so I set them.
-    // Also, if we are getting oupdates every second instead of every 4 seconds, shouldn't we be changing the size of these arrays to 4 times longer to have the same amount of time between data?
-    // So all these arrays should be 0 and 39 instead of 0 and 9. That way we are still spaced out by 40 seconds
-    // Also, to get heading and ground speed, we need a fix at 1 and 9
-    latitude[0] = getNextLat(latitude[1],heading,dt,groundSpeed);
-    longitude[0] = getNextLong(longitude[1],latitude[1],heading,dt,groundSpeed);
-
-    if (abs(alt[1] - pressureAltitude) < 1000 && alt[1] < 80000) {
-      // only log pressure altitude if it is within 1000 feet of the most recent altitude calculation AND below 80,000 ft (where pressure sensors are reliable)
-      alt[0] = pressureAltitude;
-    }
-    else {
-      // if pressure sensor altitude isn't reliable, find next altitude through a linear regression method
-      alt[0] = getNextAlt(ascentRate,dt,alt[1]);
-    }
-  }
+  CompareGPS();
+//  else {
+//    // use linear regressions to predict geo-coordinates
+//    latitude[0] = getNextLat(latitude[1],heading,dt,groundSpeed);
+//    longitude[0] = getNextLong(longitude[1],latitude[1],heading,dt,groundSpeed);
+//
+//    if (abs(alt[1] - pressureAltitude) < 1000 && alt[1] < 80000) {
+//      // only log pressure altitude if it is within 1000 feet of the most recent altitude calculation AND below 80,000 ft (where pressure sensors are reliable)
+//      alt[0] = pressureAltitude;
+//    }
+//    else {
+//      // if pressure sensor altitude isn't reliable, find next altitude through a linear regression method
+//      alt[0] = getNextAlt(ascentRate,dt,alt[1]);
+//    }
+//  }
+  
   
 }
 
@@ -79,24 +76,25 @@ void checkFix() {
   }
 }
 
+
 bool boundaryCheck() {
   // function to check if the payload is out of the flight boundaries
-  if (longitude > EASTERN_BOUNDARY) {
+  if (longitude[0] > EASTERN_BOUNDARY) {
     cutReasonA = F("reached eastern boundary");
     cutReasonB = F("reached eastern boundary");
     return true;
   }
-  else if (longitude < WESTERN_BOUNDARY) {
+  else if (longitude[0] < WESTERN_BOUNDARY) {
     cutReasonA = F("reached western boundary");
     cutReasonB = F("reached western boundary");
     return true;
   }
-  else if (latitude > NORTHERN_BOUNDARY) {
+  else if (latitude[0] > NORTHERN_BOUNDARY) {
     cutReasonA = F("reached northern boundary");
     cutReasonB = F("reached northern boundary");
     return true;
   }
-  else if (lxatitude < SOUTHERN_BOUNDARY) {
+  else if (latitude[0] < SOUTHERN_BOUNDARY) {
     cutReasonA = F("reached southern boundary");
     cutReasonB = F("reached southern boundary");
     return true; 
@@ -113,10 +111,10 @@ void fixLEDSchema() {
     digitalWrite(LED_GPS,HIGH);
     gpsLEDOn = true;
   }
-  else if(millis() - gpsLEDStamp > FIX_INTERVAL && fixStatus == FIX && gpsLEDOn) {
+  else if(millis() - gpsLEDStamp > FIX_INTERVAL && fixStatus[0] == FIX && gpsLEDOn) {
     digitalWrite(LED_GPS,LOW);
   }
-  else if(millis() - gpsLEDStamp > NOFIX_INTERVAL && fixStatus == NOFIX && gpsLEDOn) {
+  else if(millis() - gpsLEDStamp > NOFIX_INTERVAL && fixStatus[0] == NOFIX && gpsLEDOn) {
     digitalWrite(LED_GPS,LOW);
   }
   

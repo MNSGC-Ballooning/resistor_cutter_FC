@@ -3,29 +3,15 @@
 // This is the code for the main flight computer, presumably flown with a Teensy 3.5 and an SD logger
 // Communications devices still need to be decided and implemented
 
-#define SERIAL_BUFFER_SIZE 32
-
 // Libraries
 #include <SPI.h>
 #include <SD.h>
-#include <SoftwareSerial.h>
-#include <OneWire.h>
-#include <DallasTemperature.h>
 #include <UbloxGPS.h>
-#include <RadioHead.h>
 #include <MS5611.h>
 #include <Arduino.h>
 
 
-  // The definitions are to see what I used. These will have to be changed to the main code once you implement them Steele
-  #define LAT_LIMIT 0.05 // In degrees (because the gps function returns this in degrees)
-  #define INITIALIZATION 0x00
-  #define LON_LIMIT 0.02 // In degrees this is smaller because the latitude in sweeden is smaller per degree
-  #define ALT_LIMIT 100 // I think this is in meters, I believe thats what the gps outputs but can easily be changed to feet
-  #define BAD_A = 0x63
-  #define BAD_B = 0x64
-  #define BAD_C = 0x65
-  #define GPS_FAILURE 0x43 // I made CUT_C and FAILURE whatever I wanted so these can be changed as well
+
 
 // Pin Definitions
 #define UBLOX_RX 2
@@ -64,31 +50,18 @@
 #define NOFIX 0x00
 #define FIX 0x01
 
-//// Comms Addresses
-//#define NETWORKID 1                     // network within which all comms devices will operate
-//#define LOCAL_ADDRESS 1                 // internal network address of the main computer
-//#define CUTTERA_ADDRESS 2               // network address for cutter A
-//#define CUTTERB_ADDRESS  3              // network address for cutter B
-//#define BROADCAST 255                   // network address to broadcast to all nodes
-//
-//// Comms definitions
-//#define FREQUENCY  RF69_915MHZ           // change to RF69_433MHZ if using 433MHz devices
-//#define ENCRYPT   false                 // if set to true, all node will require an encrytion key to talk within the network
-//#define ENCRYPT_KEY "PAPAJOEKNOWSBEST"  // 16 byte key used for all nodes within the network
-//#define USEACK    false                 // if set to true, node will request acknowledgements when sending messages
-
 // Boundaries
 ///////CHANGE BEFORE EACH FLIGHT////////
-#define EASTERN_BOUNDARY -92            // longitudes
-#define WESTERN_BOUNDARY -95
-#define NORTHERN_BOUNDARY 45            // latitudes
-#define SOUTHERN_BOUNDARY 42
-#define SLOW_DESCENT_CEILING 110000     // max altitude stack can reach before balloon is cut and stack enters slow descent state
-#define SLOW_DESCENT_FLOOR 80000        // min altitude for the slow descent state
-#define INIT_ALTITUDE 5000              // altitude at which the state machine begins
-#define RECOVERY_ALTITUDE 7000          // altitude at which the recovery state intializes on descent
-#define MIN_TEMP -60                    // minimum acceptable internal temperature
-#define MAX_TEMP 90                     // maximum acceptable interal temperature
+#define EASTERN_BOUNDARY -92.0            // longitudes
+#define WESTERN_BOUNDARY -95.0
+#define NORTHERN_BOUNDARY 45.0            // latitudes
+#define SOUTHERN_BOUNDARY 42.0
+#define SLOW_DESCENT_CEILING 110000.0     // max altitude stack can reach before balloon is cut and stack enters slow descent state
+#define SLOW_DESCENT_FLOOR 80000.0        // min altitude for the slow descent state
+#define INIT_ALTITUDE 5000.0              // altitude at which the state machine begins
+#define RECOVERY_ALTITUDE 7000.0          // altitude at which the recovery state intializes on descent
+#define MIN_TEMP -60.0                    // minimum acceptable internal temperature
+#define MAX_TEMP 90.0                     // maximum acceptable interal temperature
 
 // Velocity Boundaries
 #define MAX_SA_RATE 375                 // maximum velocity (ft/min) that corresponds to a slow ascent state
@@ -97,6 +70,23 @@
 #define MIN_SD_RATE -600                // minimum velocity that corresponds to a slow desent state
 
 #define PRESSURE_TIMER_ALTITUDE 70000   // altitude at which the pressure timer begins
+
+#define blueSerialA Serial2
+#define blueSerialB Serial3
+
+struct data{                                   // setting up data structure for communication
+  uint8_t startByte;
+  uint8_t cutterTag;
+  float latitude;
+  float longitude;
+  float Altitude;
+  float AR;
+  uint8_t cutStatus;
+  uint8_t currentState;
+  uint16_t checksum;
+  uint8_t stopByte;
+}dataPacketA;                                // shortcut to create data object
+data dataPacketB; 
 
 // Time Stamps
 unsigned long updateStamp = 0;
@@ -118,8 +108,8 @@ char fileName[] = "rCut00.csv";
 bool sdActive = false;
 
 // GPS Variables
-SoftwareSerial ubloxSerial(UBLOX_RX,UBLOX_TX);
-UbloxGPS gps(&ubloxSerial);
+
+UbloxGPS gps(&Serial1);
 float alt[SIZE];                  // altitude in feet, also there exists a queue library we can use instead
 unsigned long timeStamp[SIZE];    // time stamp array that can be used with alt array to return a velocity
 float latitude[SIZE];
@@ -142,27 +132,24 @@ float pressureAltitude;
 float pressureRelativeAltitude;
 boolean baroCalibrated = false; // inidicates if the barometer has been calibrated or not
 
-// Dallas Digital Temp Sensors
-OneWire oneWire1(ONE_WIRE_BUS);                 //Temperature sensor wire busses
-OneWire oneWire2(TWO_WIRE_BUS);
-DallasTemperature sensor1(&oneWire1);           //Temperature sensors
-DallasTemperature sensor2(&oneWire2);
-float t1,t2 = -127.00;                          //Temperature values
-
-//// RFM69 Comms Device
-//RFM69 radio;
-
+// Thermistors
+float t1,t2 = -127.00;                          //Temperature values, will probably be thermistors!!!!!!!
+float dt = 0;
 
 void setup() {
   Serial.begin(9600);   // initialize serial monitor
+  Serial2.begin(9600);
+  Serial3.begin(9600);
   
   initGPS();            // initialze GPS
 
-  initPressure();       // initialize pressure sensor
+ // initPressure();       // initialize pressure sensor
 
   initTemperatures();   // initalize temperature sensors
 
   initSD();             // initialize SD card
+
+  
 
   pinMode(LED_SD,OUTPUT);
   pinMode(LED_GPS,OUTPUT);
@@ -178,7 +165,7 @@ void loop() {
   if(millis() - updateStamp > UPDATE_INTERVAL) { 
     updateStamp = millis();
       
-    updatePressure();   // update pressure data
+    //updatePressure();   // update pressure data
 
     updateTemperatures(); // update temperature sensors
 

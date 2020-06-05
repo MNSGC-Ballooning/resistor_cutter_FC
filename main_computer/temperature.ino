@@ -1,19 +1,11 @@
 
 void initTemperatures() {
-  // initialize Dallas temperature sensors
-  sensor1.begin();
-  sensor2.begin();
+
 }
 
 
 void updateTemperatures() {
-  // request temperatures from the Dallas sensors
-  sensor1.requestTemperatures();
-  sensor2.requestTemperatures();
 
-  // find the temperatures in Celsius
-  t1 = sensor1.getTempCByIndex(0);
-  t2 = sensor2.getTempCByIndex(0);
 }
 
 
@@ -86,5 +78,5 @@ bool tempCheck() {
     // neither temp sensor is working
     return false;
   }
-
+return false;
 }
