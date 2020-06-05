@@ -1,11 +1,11 @@
   // The definitions are to see what I used. These will have to be changed to the main code once you implement them Steele
-  #define LAT_LIMIT 0.05 // In degrees (because the gps function returns this in degrees)
-  #define INITIALIZATION 0x00
-  #define LON_LIMIT 0.02 // In degrees this is smaller because the latitude in sweeden is smaller per degree
-  #define ALT_LIMIT 100 // I think this is in meters, I believe thats what the gps outputs but can easily be changed to feet
-  #define CUT_A = 0x15
-  #define CUT_B = 0x25
-  #define CUT_C = 0x35
+  #define LAT_LIMIT 0.05; // In degrees (because the gps function returns this in degrees)
+  #define INITIALIZATION 0x00;
+  #define LON_LIMIT 0.02; // In degrees this is smaller because the latitude in sweeden is smaller per degree
+  #define ALT_LIMIT 100; // I think this is in meters, I believe thats what the gps outputs but can easily be changed to feet
+  #define CUT_A = 0x15;
+  #define CUT_B = 0x25;
+  #define CUT_C = 0x35;
   #define GPS_FAILURE 0x45 // I made C and FAILURE whatever I wanted so these can be changed as well
   
   byte gpsCounter = 0;
@@ -14,9 +14,15 @@
   uint8_t gpsAltSTATE = INITIALIZATION;
 
   //The code above is the data recieved from the computer A and B, with C denoting the main gondolas data. These can be changed to better fit the variables
-  float latA, latB, latC;
-  float lonA, lonB, lonC;
-  float altA, altB, altC;
+  float latA = dataPacketA.latitude;
+  float latB = dataPacketB.latitude;
+  float latC = gps.getLat();
+  float lonA = dataPacketA.longitude; 
+  float lonB = dataPacketB.longitude;
+  float lonC = gps.getLon();
+  float altA = dataPacketA.Altitude;
+  float altB = dataPacketB.Altitude;
+  float altC = gps.getAlt_feet();
 
   // This is used for the difference between data measurements and will be evaluated later
   float latAB, latBC, latCA;
@@ -71,8 +77,13 @@ void CompareGPS() {
     //////////// Latitude ///////////////
     /////////////////////////////////////
 
+    if( (((latA && (latB || latC)) > WESTERN_BOUNDARY) || ((latB && latC) > WESTERN_BOUNDARY)) WestRequests+=1; // if any two readings exceed West bound, requests cut
+    else if ((((latA && (latB || latC)) < WESTERN_BOUNDARY) || ((latB && latC) < WESTERN_BOUNDARY)) WestReqests = 0; // resets request counter if two disagree
+    if( ((latA && (latB || latC)) < EASTERN_BOUNDARY ) || ((latB && latC)) < EASTERN_BOUNDARY)) EastRequests+=1;
+    else if( ((latA && (latB || latC)) > EASTERN_BOUNDARY ) || ((latB && latC)) > EASTERN_BOUNDARY)) EastRequests=0;
+
   
-    if(latAB>LAT_LIMIT && latBC>LAT_LIMIT && latCA<LAT_LIMIT) {
+    /*if(latAB>LAT_LIMIT && latBC>LAT_LIMIT && latCA<LAT_LIMIT) {
       faultylat = 'B';
       LAT = (latA+latC)/2;
       gpsLatSTATE = CUT_B;
@@ -102,7 +113,7 @@ void CompareGPS() {
         gpsLatSTATE = GPS_FAILURE;
         reason = "The latitude measurements were faulty and needed to be cut";
       }
-    }
+    }*/
 
 
 
@@ -112,8 +123,17 @@ void CompareGPS() {
     //////////// Longitude //////////////
     /////////////////////////////////////
     
+    if( (((lonA && (lonB || lonC)) > NORTHERN_BOUNDARY) || ((lonB && lonC) > NORTHERN_BOUNDARY)) NorthRequests+=1; // if any two readings exceed north bound, requests cut
+    else if ((((lonA && (lonB || lonC)) < NORTHERN_BOUNDARY) || ((lonB && lonC) < NORTHERN_BOUNDARY)) NorthReqests = 0; // resets request counter if two disagree
+    if( ((lonA && (lonB || lonC)) < SOUTHERN_BOUNDARY ) || ((lonB && lonC)) < SOUTHERN_BOUNDARY)) SouthRequests+=1;
+    else if( ((lonA && (lonB || lonC)) > SOUTHERN_BOUNDARY ) || ((lonB && lonC)) > SOUTHERN_BOUNDARY)) SouthRequests=0;
+
+    if( (EastRequests >= 10) || (WestRequests >= 10) || (NorthRequests >= 10) || (SouthRequests >= 10)){ // if 10 consecutive requests have been received, cut
+      cutResistorOn('a');
+      cutResistorOn('b');
+    }
   
-    // Because we are in Sweeden, the longitudes are closer together, and therefore the tolerance can be smaller for them
+    /*// Because we are in Sweden, the longitudes are closer together, and therefore the tolerance can be smaller for them
     // This is the longitude buffer
     if(lonAB>LON_LIMIT && lonBC>LON_LIMIT && lonCA<LON_LIMIT) {
       faultylon = 'B';
@@ -145,39 +165,41 @@ void CompareGPS() {
         gpsLonSTATE = GPS_FAILURE;
         reason = "The longitude measurements were faulty and needed to be cut";
       }
-    }
+    }*/
+}
 
 
 
+void compareAlt(){    
+    /////////////////////////////////////
+    //////////// Altitude ///////////////
+    /////////////////////////////////////
 
     
-    /////////////////////////////////////
-    //////////// Altitdue ///////////////
-    /////////////////////////////////////
     
-    if(altAB>ALT_LIMIT && altBC>ALT_LIMIT && altCA<ALT_LIMIT) {
+   /* if(altAB>ALT_LIMIT && altBC>ALT_LIMIT && altAC<ALT_LIMIT) {
       faultyalt = 'B';
       ALT = (altA+altC)/2;
       gpsSTATE = CUT_B;
       CurrentState = "Getting faulty measurements for the B system altitude";
       reason = "Using an average of A and C measurements for altitude";
     }
-    else if(altAB>ALT_LIMIT && altBC<ALT_LIMIT && altCA>ALT_LIMIT) {
+    else if(altAB>ALT_LIMIT && altBC<ALT_LIMIT && altAC>ALT_LIMIT) {
       faultyalt = 'A';
       ALT = (altB+altC)/2;
       gpsAltSTATE = CUT_A;
       CurrentState = "Getting faulty measurements for the A system altitude";
       reason = "Using an average of B and C measurements for altitude";
     }
-    else if(altAB<ALT_LIMIT && altBC>ALT_LIMIT && altCA>ALT_LIMIT) {
+    else if(altAB<ALT_LIMIT && altBC>ALT_LIMIT && altAC>ALT_LIMIT) {
       faultyalt = 'C';
-      ALT = altA+altB)/2;
+      ALT = (altA+altB)/2;
       gpsAltSTATE = CUT_C;
       CurrentState = "Getting faulty measurements for the C system altitude";
       reason = "Using an average of A and B measurements for altitude";
       
     }
-    else if(altAB>ALT_LIMIT && altBC>ALT_LIMIT && altCA>ALT_LIMIT) {
+    else if(altAB>ALT_LIMIT && altBC>ALT_LIMIT && altAC>ALT_LIMIT) {
       faultyalt = 'X'; // This is the case in which two or more GPS' go out. In this case, there is no way to tell which GPS is correct and we must terminate immediately
       ALT = 0;
       gpsCounterAlt++;
@@ -186,14 +208,10 @@ void CompareGPS() {
         gpsAltSTATE = GPS_FAILURE;
         reason = "The altitude measurements were faulty and needed to be cut";
       }
-    }
+    }*/
+}
 
-
-
-
-
-
-  
-    // The only case not covered in both latitudes and longitudes is the case in which two GPS' are giving bad information, but the bad information they are giving is the same.
-    // This means that the latitude or longitude used is a faulty one, and I do not currently see a way to fix this problem
-  
+void compareAR(){
+  // compares Ascent rates
+  // if stack ascending too slowly, need to cut away both balloons
+}

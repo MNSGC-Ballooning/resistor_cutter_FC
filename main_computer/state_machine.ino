@@ -48,7 +48,7 @@ void stateMachine() {
       }
       // cut balloon A if the termination altitude is reached
       if (alt[0] > SLOW_DESCENT_CEILING) {
-        cutResistorOn('a');
+        compareAlt();
         cutReasonA = F("reached termination altitude");
       }
 
@@ -60,8 +60,7 @@ void stateMachine() {
       stateString = F("Slow Ascent");
 
       // cut both balloons as the stack is ascending too slowly
-      cutResistorOn('a');
-      cutResistorOn('b');
+      compareAR();
       cutReasonA = F("slow ascent state");
       cutReasonB = F("slow ascent state");
 

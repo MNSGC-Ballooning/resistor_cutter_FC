@@ -1,7 +1,7 @@
 // Resistor Cutaway Standalone System
 
-// This is the code for the main flight computer, presumably flown with a Teensy 3.5 and an SD logger
-// Communications devices still need to be decided and implemented
+// This is the code for the main flight computer, to be flown with a Teensy 3.5 and an SD logger
+// Communication with cutter boxes via bluetooth
 
 #define SERIAL_BUFFER_SIZE 32
 
@@ -9,11 +9,7 @@
 #include <SPI.h>
 #include <SD.h>
 #include <SoftwareSerial.h>
-#include <OneWire.h>
-#include <DallasTemperature.h>
 #include <UbloxGPS.h>
-#include <RadioHead.h>
-#include <MS5611.h>
 #include <Arduino.h>
 
 
@@ -23,9 +19,11 @@
 #define CUTTER_PIN 5
 #define LED_SD 6
 #define LED_GPS 7
-#define CHIP_SELECT 8
-#define ONE_WIRE_BUS 28
-#define TWO_WIRE_BUS 29
+#define BLUE_RX_A 8
+#define BLUE_TX_A 9
+#define BLUE_RX_B 10
+#define BLUE_TX_B 11
+#define TWO_WIRE_BUS 12
 #define PRESSURE_ANALOG_PIN A0
 
 // Intervals
@@ -53,19 +51,6 @@
 // Fix statuses
 #define NOFIX 0x00
 #define FIX 0x01
-
-//// Comms Addresses
-//#define NETWORKID 1                     // network within which all comms devices will operate
-//#define LOCAL_ADDRESS 1                 // internal network address of the main computer
-//#define CUTTERA_ADDRESS 2               // network address for cutter A
-//#define CUTTERB_ADDRESS  3              // network address for cutter B
-//#define BROADCAST 255                   // network address to broadcast to all nodes
-//
-//// Comms definitions
-//#define FREQUENCY  RF69_915MHZ           // change to RF69_433MHZ if using 433MHz devices
-//#define ENCRYPT   false                 // if set to true, all node will require an encrytion key to talk within the network
-//#define ENCRYPT_KEY "PAPAJOEKNOWSBEST"  // 16 byte key used for all nodes within the network
-//#define USEACK    false                 // if set to true, node will request acknowledgements when sending messages
 
 // Boundaries
 ///////CHANGE BEFORE EACH FLIGHT////////
@@ -122,35 +107,32 @@ float heading;
 uint8_t sats;
 bool gpsLEDOn = false;
 
-// MS5611 Pressure Sensor Variables
-MS5611 baro;
-float seaLevelPressure;         // in Pascals
-float baroReferencePressure;    // some fun pressure/temperature readings below 
-float baroTemp;                 // non-"raw" readings are in Pa for pressure, C for temp, meters for altitude
-unsigned int pressurePa;
-float pressureAltitude;
-float pressureRelativeAltitude;
-boolean baroCalibrated = false; // inidicates if the barometer has been calibrated or not
-
-// Dallas Digital Temp Sensors
-OneWire oneWire1(ONE_WIRE_BUS);                 //Temperature sensor wire busses
-OneWire oneWire2(TWO_WIRE_BUS);
-DallasTemperature sensor1(&oneWire1);           //Temperature sensors
-DallasTemperature sensor2(&oneWire2);
-float t1,t2 = -127.00;                          //Temperature values
-
-//// RFM69 Comms Device
-//RFM69 radio;
+// Bluetooth
+SoftwareSerial blueSerialA(BLUE_RX_A, BLUE_TX_A); // serial initializations
+SoftwareSerial blueSerialB(BLUE_RX_B, BLUE_TX_B);
+struct data{                                   // setting up data structure for communication
+  uint8_t startByte;
+  uint8_t cutterTag;
+  float latitude;
+  float longitude;
+  float Altitude;
+  float AR;
+  uint8_t cutStatus;
+  uint8_t currentState;
+//  uint16_t checksum;
+  uint8_t stopByte;
+}dataPacketA;                                // shortcut to create data object
+data dataPacketB;                            // creating second data object
 
 
 void setup() {
   Serial.begin(9600);   // initialize serial monitor
+  blueSerialA.begin(9600); // initialize bluetooth communications
+  blueSerialB.begin(9600);
   
   initGPS();            // initialze GPS
 
-  initPressure();       // initialize pressure sensor
-
-  initTemperatures();   // initalize temperature sensors
+//  initTemperatures();   // initalize temperature sensors
 
   initSD();             // initialize SD card
 
@@ -168,18 +150,20 @@ void loop() {
   if(millis() - updateStamp > UPDATE_INTERVAL) { 
     updateStamp = millis();
       
-    updatePressure();   // update pressure data
-
-    updateTemperatures(); // update temperature sensors
+//    updateTemperatures(); // update temperature sensors
 
     updateTelemetry();  // update GPS data
     
-    logData();          // log the data
 
-    //NEEDED: Function to read data from comms from cutter boxes
+    checkComms('A');
+    checkComms('B');
+
+    CompareGPS();     // reads and compares comms data on both cutters to main, if two out of three request cut, makes a cut
+    
+    logData();          // log the data
     
     stateMachine();     // update the state machine
-  }
+    }
 
   // cut balloon if the master timer expires
   if(millis() > MASTER_INTERVAL*M2MS) {
