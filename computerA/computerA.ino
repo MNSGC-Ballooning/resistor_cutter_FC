@@ -7,6 +7,15 @@
 //
 //=============================================================================================================================================
 
+#define SERIAL_BUFFER_SIZE 32
+
+// Libraries
+#include <SPI.h>
+#include <SoftwareSerial.h>
+#include <UbloxGPS.h>
+#include <LatchRelay.h> 
+#include <Arduino.h>
+
 /*  Arduino Uno w/ PCB Shield pin connections:
      ----------------------------------------------
     | Component                    | Pins used     |    
@@ -20,17 +29,6 @@
      ----------------------------------------------
 */
 
-#define SERIAL_BUFFER_SIZE 32
-
-// Libraries
-// Libraries
-#include <SPI.h>
-#include <SoftwareSerial.h>
-#include <UbloxGPS.h>
-#include <LatchRelay.h> 
-#include <Arduino.h>
-
- 
 // Pin Definitions
 #define UBLOX_RX 0
 #define UBLOX_TX 1
@@ -43,21 +41,17 @@
 #define HEAT_OFF 13
 #define THERM_PIN A0
 
-
 // Intervals
 #define FIX_INTERVAL 5000               // GPS with a fix—will flash for 5 seconds
 #define NOFIX_INTERVAL 2000             // GPS with no fix—will flash for 2 seconds
-#define GPS_LED_INTERVAL 10000          // GPS LED runs on a 10 second loop
+#define LED_INTERVAL 10000              // GPS LED runs on a 10 second loop
 #define UPDATE_INTERVAL 2000            // update all data and the state machine every 4 seconds
 #define CUT_INTERVAL 30000              // ensure the cutting mechanism is on for 30 seconds
 #define MASTER_INTERVAL 135             // master timer that cuts balloon after 2hr, 15min
-#define PRESSURE_TIMER_INTERVAL 50      // timer that'll cut the balloon 50 minutes after pressure reads 70k feet
 #define ASCENT_INTERVAL 135             // timer that cuts balloon A 2 hours and 15 minutes after ASCENT state initializes
 #define SLOW_DESCENT_INTERVAL 60        // timer that cuts both balloons (as a backup) an hour after SLOW_DESCENT state initializes
 
 // Constants
-#define PA_TO_ATM 1/101325              // PSI to ATM conversion ratio
-#define SEA_LEVEL_PSI 14.7              // average sea level pressure in PSI
 #define M2MS 60000                      // milliseconds per minute
 #define SIZE 10                         // size of arrays that store values
 #define D2R PI/180                      // degrees to radians conversion
@@ -69,7 +63,6 @@
 // Fix statuses
 #define NOFIX 0x00
 #define FIX 0x01
-
 
 // Boundaries
 ///////CHANGE BEFORE EACH FLIGHT////////
@@ -90,24 +83,10 @@
 #define MIN_FLOAT_RATE -100             // minimum velocity that corresponds to a float state, or maximum for a slow descent state
 #define MIN_SD_RATE -600                // minimum velocity that corresponds to a slow desent state
 
-#define PRESSURE_TIMER_ALTITUDE 70000   // altitude at which the pressure timer begins
-
-//Thermistor
-#define C2K 273.15
-#define ADC_MAX 8196                                                    // The maximum adc value given to the thermistor, should be 8196 for a teensy and 1024 for an Arduino
-#define CONST_A 0.001125308852122
-#define CONST_B 0.000234711863267                                       // A, B, and C are constants used for a 10k resistor and 10k thermistor for the steinhart-hart equation
-#define CONST_C 0.000000085663516                                       // NOTE: These values change when the thermistor and/or resistor change value, so if that happens, more research needs to be done on those constants
-#define CONST_R 10000       
-#define THERMISTOR_A A1
-#define THERMISTOR_B A2    
-float t1 = -127.00;                                                    //Temperature initialization values
-float t2 = -127.00;
-
 // Time Stamps
 unsigned long updateStamp = 0;
 unsigned long cutStampA = 0,  cutStampB = 0;  
-unsigned long gpsLEDStamp = 0;
+unsigned long LEDStamp = 0;
 
 // State Machine
 uint8_t state; 
@@ -131,7 +110,7 @@ float ascentRate;
 float groundSpeed;
 float heading;
 uint8_t sats;
-bool gpsLEDOn = false;
+bool LEDOn = false;
 
 // active heating variables
 float sensTemp;
@@ -157,8 +136,8 @@ struct data{
 // Autonomous operation variables
 long timeOut;
 
-
 void setup() {
+  
   Serial.begin(9600);   // initialize serial monitor
   
   blueSerial.begin(9600); // initialize bluetooth serial communication
