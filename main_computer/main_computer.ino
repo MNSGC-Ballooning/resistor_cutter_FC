@@ -13,7 +13,7 @@
 #include <DallasTemperature.h>
 #include <UbloxGPS.h>
 #include <RadioHead.h>
-//#include <MS5611.h>
+#include <MS5611.h>
 #include <Arduino.h>
 
 
