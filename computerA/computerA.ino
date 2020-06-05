@@ -16,7 +16,7 @@
     | Bluetooth hc05               | 8,9           |
     | H-Driver                     | 10,11         |
     | Latching Relay               | 12,13         |
-    | Thermistor                   | A0            | 
+    | Thermistors                  | A0, A1        | 
      ----------------------------------------------
 */
 
@@ -40,7 +40,8 @@
 // #define CUTTER_PIN2 11 // not actually 11 but pick a pin -_/(o_o)\_-
 #define HEAT_ON 12
 #define HEAT_OFF 13
-#define THERM_PIN A0
+#define THERMISTOR_A A0
+#define THERMISTOR_B A1 
 
 
 // Intervals
@@ -99,9 +100,7 @@
 #define CONST_A 0.001125308852122
 #define CONST_B 0.000234711863267                                       // A, B, and C are constants used for a 10k resistor and 10k thermistor for the steinhart-hart equation
 #define CONST_C 0.000000085663516                                       // NOTE: These values change when the thermistor and/or resistor change value, so if that happens, more research needs to be done on those constants
-#define CONST_R 10000       
-#define THERMISTOR_A A1
-#define THERMISTOR_B A2    
+#define CONST_R 10000        
 float t1 = -127.00;                                                    //Temperature initialization values
 float t2 = -127.00;
 
