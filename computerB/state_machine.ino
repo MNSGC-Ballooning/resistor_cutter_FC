@@ -39,6 +39,10 @@ void stateMachine() {
     case 0x01:
       stateString = F("Ascent");
 
+      static unsigned long ascentStamp = millis();
+
+      // won't cut B --> cuts only A if ascent timer runs out
+
       break;
 
     ///// Slow Ascent /////
@@ -47,12 +51,12 @@ void stateMachine() {
       stateString = F("Slow Ascent");
 
       // cut both balloons as the stack is ascending too slowly
-      cutResistorOnB();
+      requestCut();
       cutReasonB = F("slow ascent state");
 
       break;
 
-    ///// Slow Descent /////      THIS STATE STILL NEEDS TO BE WORKED OUT
+    ///// Slow Descent 
     case 0x04:
       // organize timing schema for slow descent state
       stateString = F("Slow Descent");
@@ -62,9 +66,10 @@ void stateMachine() {
 
       if(millis() - slowDescentStamp > SLOW_DESCENT_INTERVAL*M2MS || (alt[0] < SLOW_DESCENT_FLOOR && alt[0] != 0)) {
         SDTerminationCounter++;
-
-        if(SDTerminationCounter >= 10) {
-          cutResistorOnB();
+        
+      // need to cut both balloons
+        if(SDTerminationCounter >= 40) {
+          requestCut();
           cutReasonB = F("reached slow descent floor");
         }
       }
@@ -82,10 +87,12 @@ void stateMachine() {
       if(alt[0] < SLOW_DESCENT_FLOOR && alt[0] != 0) {
         floorAltitudeCounter++;
 
-        if(floorAltitudeCounter >= 10 && !cutCheck) {
+      // redundant check for slow descent --> cut both balloons
+
+        if(floorAltitudeCounter >= 40 && !cutCheck) {
           floorAltitudeCounter = 0;
 
-          cutResistorOnB();
+          requestCut();
           cutReasonB = F("descent state cut check");
         }
       }
@@ -98,7 +105,7 @@ void stateMachine() {
       stateString = F("Float");
 
       // cut both balloons as the stack is in a float state
-      cutResistorOnB();
+      requestCut();
       cutReasonB = F("float state");      
 
       break;
@@ -108,8 +115,8 @@ void stateMachine() {
       // cut resistor and note state
       stateString = F("Out of Boundary");
       
-      // cut balloon as the stack is out of the predefined flight boundaries
-      cutResistorOnB();
+      // cut both balloons as the stack is out of the predefined flight boundaries
+      requestCut();
       // cut reasons are more specifically defined in the boundaryCheck() function
 
       break;
@@ -120,7 +127,7 @@ void stateMachine() {
       stateString = F("Temperature Failure");
 
       // cut balloon as temps are at critical levels
-      cutResistorOnB();
+      cutResistorOnB(); // rather than requestCut, as this cannot be confirmed by main
 
       // cut reasons defined within tempCheck() function
 
@@ -132,7 +139,6 @@ void stateMachine() {
       stateString = F("Recovery");
 
       break;
-     
 
   }
   
@@ -141,24 +147,26 @@ void stateMachine() {
 
 void stateSwitch() {
   // initialize all counters as static bytes that begin at zero
-  static byte ascentCounter = 0,  slowAscentCounter = 0,  descentCounter = 0, slowDescentCounter = 0, floatCounter = 0, recoveryCounter = 0, boundaryCounter = 0, tempCounter = 0;
+  static byte ascentCounter = 0,  slowAscentCounter = 0,  descentCounter = 0, slowDescentCounter = 0, floatCounter = 0, recoveryCounter = 0, boundaryCounter = 0;
+  static byte tempCounter = 0;
 
   if(stateSwitched) {     // reset all state counters if the state was just switched
-    ascentCounter = 0;  slowAscentCounter = 0;  descentCounter  = 0;  slowDescentCounter = 0;   floatCounter  = 0; recoveryCounter = 0;  boundaryCounter = 0; tempCounter = 0;
+    ascentCounter = 0;  slowAscentCounter = 0;  descentCounter  = 0;  slowDescentCounter = 0;   floatCounter  = 0; recoveryCounter = 0;  boundaryCounter = 0;
+    tempCounter = 0;
     stateSwitched = false;
   }
 
   if(ascentRate > MAX_SA_RATE && state != ASCENT) {
     ascentCounter++;
-    if(ascentCounter >= 10) {
+    if(ascentCounter >= 40) {
       state = ASCENT;
       ascentCounter = 0;
       stateSwitched = true;
     }
   }
-  else if(ascentRate <= MAX_SA_RATE && ascentRate > MAX_FLOAT_RATE && state != SLOW_ASCENT) {
+  else if(ascentRate <= MAX_SA_RATE && ascentRate > MAX_FLOAT_RATE && state != SLOW_ASCENT && alt[0] < 30000) {
     slowAscentCounter++;
-    if(slowAscentCounter >= 10) {
+    if(slowAscentCounter >= 40) {
       state = SLOW_ASCENT;
       slowAscentCounter = 0;
       stateSwitched = true;
@@ -166,7 +174,7 @@ void stateSwitch() {
   }
   else if(ascentRate <= MAX_FLOAT_RATE && ascentRate >= MIN_FLOAT_RATE && state != FLOAT) {
     floatCounter++;
-    if(floatCounter >= 20) {
+    if(floatCounter >= 600) {
       state = FLOAT;
       floatCounter = 0;
       stateSwitched = true;
@@ -174,7 +182,7 @@ void stateSwitch() {
   }
   else if(ascentRate < MIN_FLOAT_RATE && ascentRate >= MIN_SD_RATE && state != SLOW_DESCENT) {
     slowDescentCounter++;
-    if(slowDescentCounter >= 10) {
+    if(slowDescentCounter >= 40) {
       state = SLOW_DESCENT;
       slowDescentCounter = 0;
       stateSwitched = true;
@@ -182,7 +190,7 @@ void stateSwitch() {
   }
   else if(ascentRate < MIN_SD_RATE && state !=DESCENT) {
     descentCounter++;
-    if(descentCounter >= 10) {
+    if(descentCounter >= 40) {
       state = DESCENT;
       descentCounter = 0;
       stateSwitched = true;
@@ -190,7 +198,7 @@ void stateSwitch() {
   }
   else if(state != RECOVERY && (state == DESCENT || state == SLOW_DESCENT) && alt[0] < RECOVERY_ALTITUDE) {
     recoveryCounter++;
-    if(recoveryCounter >= 10) {
+    if(recoveryCounter >= 40) {
       state = RECOVERY;
       recoveryCounter = 0;
       stateSwitched = true;
@@ -200,19 +208,19 @@ void stateSwitch() {
   // part of a separate series of if/else statements as criteria for this state is different
   if(boundaryCheck() && state != OUT_OF_BOUNDARY) {
     boundaryCounter++;
-    if(boundaryCounter >= 10) {
+    if(boundaryCounter >= 40) {
       state = OUT_OF_BOUNDARY;
       boundaryCounter = 0;
       stateSwitched = true;
     }
-  }
+  } 
 
-  if(tempCheck() && state != TEMPERATURE_FAILURE)  {
+  if(tempCheck() && state != TEMPERATURE_FAILURE){
     tempCounter++;
-    if(tempCounter >= 10) {
+    if(tempCounter >= 40) {
       state = TEMPERATURE_FAILURE;
-      tempCounter  = 0;
+      tempCounter = 0;
       stateSwitched = true;
     }
-  }  
+  }
 }

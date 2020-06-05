@@ -1,7 +1,7 @@
 // GPS functions
 
 void initGPS() {
-  ubloxSerial.begin(UBLOX_BAUD);                                       //initiate GPS
+  Serial.begin(UBLOX_BAUD);                                       //initiate GPS
   gps.init();                                                          //Initiate GPS Data lines
 
   Serial.println("GPS initialized...");
@@ -10,7 +10,6 @@ void initGPS() {
     Serial.println("Airborne mode set...");
   }
   Serial.println("GPS configured");
-  
 }
 
 
@@ -49,18 +48,10 @@ void updateTelemetry() {
     // use linear regressions to predict geo-coordinates
     latitude[0] = getNextLat(latitude[1],heading,dt,groundSpeed);
     longitude[0] = getNextLong(longitude[1],latitude[1],heading,dt,groundSpeed);
-
-    if (abs(alt[1] - pressureAltitude) < 1000 && alt[1] < 80000) {
-      // only log pressure altitude if it is within 1000 feet of the most recent altitude calculation AND below 80,000 ft (where pressure sensors are reliable)
-      alt[0] = pressureAltitude;
-    }
-    else {
-      // if pressure sensor altitude isn't reliable, find next altitude through a linear regression method
-      alt[0] = getNextAlt(ascentRate,dt,alt[1]);
-    }
+    alt[0] = getNextAlt(ascentRate,dt,alt[1]);
   }
-  
 }
+  
 
 void checkFix() {
   if(gps.getFixAge() < 4000) {
@@ -99,16 +90,16 @@ bool boundaryCheck() {
 
 void fixLEDSchema() {
   // fix LED timing schema
-  if(millis() - gpsLEDStamp > GPS_LED_INTERVAL && !gpsLEDOn) {
-    gpsLEDStamp = millis();
-    digitalWrite(LED_GPS,HIGH);
-    gpsLEDOn = true;
+  if(millis() - LEDStamp > LED_INTERVAL && !LEDOn) {
+    LEDStamp = millis();
+    digitalWrite(LED,HIGH);
+    LEDOn = true;
   }
-  else if(millis() - gpsLEDStamp > FIX_INTERVAL && fixStatus == FIX && gpsLEDOn) {
-    digitalWrite(LED_GPS,LOW);
+  else if(millis() - LEDStamp > FIX_INTERVAL && fixStatus == FIX && LEDOn) {
+    digitalWrite(LED,LOW);
   }
-  else if(millis() - gpsLEDStamp > NOFIX_INTERVAL && fixStatus == NOFIX && gpsLEDOn) {
-    digitalWrite(LED_GPS,LOW);
+  else if(millis() - LEDStamp > NOFIX_INTERVAL && fixStatus == NOFIX && LEDOn) {
+    digitalWrite(LED,LOW);
   }
   
 }
@@ -124,7 +115,7 @@ float getAscentRate(float alt1, float alt2, long time1, long time2) {
     velocity = ((alt1-alt2)/(time1-time2)) * 60;
   }
 
-  return velocity;      // returns a vleocity in feet/minute
+  return velocity;      // returns a velocity in feet/minute
 }
 
 
@@ -141,7 +132,7 @@ float getNextAlt(float ascentRate, float dt, float currentAlt) {
 float getGroundSpeed(float lat1, float lat2, float long1, float long2, float time1, float time2) {
   float groundSpeed = 0;
 
-  float miles_per_lat = 69; // roughly 69 miles per degree latitude
+  float miles_per_lat = 69; // roughly 69 miles per degree latitude // nice
   float miles_per_long = cos(lat1*D2R)*69.172; // miles per degree longitude depending on the current latitude
 
   time1 /= 1000;  // divide milliseconds into seconds
