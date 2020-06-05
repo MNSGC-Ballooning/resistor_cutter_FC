@@ -1,12 +1,4 @@
-  // The definitions are to see what I used. These will have to be changed to the main code once you implement them Steele
-  #define LAT_LIMIT 0.05 // In degrees (because the gps function returns this in degrees)
-  #define INITIALIZATION 0x00
-  #define LON_LIMIT 0.02 // In degrees this is smaller because the latitude in sweeden is smaller per degree
-  #define ALT_LIMIT 100 // I think this is in meters, I believe thats what the gps outputs but can easily be changed to feet
-  #define CUT_A = 0x15
-  #define CUT_B = 0x25
-  #define CUT_C = 0x35
-  #define GPS_FAILURE 0x45 // I made C and FAILURE whatever I wanted so these can be changed as well
+
   
   byte gpsCounter = 0;
   uint8_t gpsLatSTATE = INITIALIZATION;
@@ -39,7 +31,7 @@
   byte gpsCounterLon = 0;
   byte gpsCounterAlt = 0;
   
-  // This is the reason the box had to cut the system
+  // This is the reason the box had to cut the system and the current state of the box
   String reason;
   String CurrentState = "Everything is fine";
   
@@ -75,21 +67,21 @@ void CompareGPS() {
     if(latAB>LAT_LIMIT && latBC>LAT_LIMIT && latCA<LAT_LIMIT) {
       faultylat = 'B';
       LAT = (latA+latC)/2;
-      gpsLatSTATE = CUT_B;
+      gpsLatSTATE = BAD_B;
       CurrentState = "Getting faulty measurements for the B system latitude";
       reason = "Using an average of A and C measurements for latitude";
     }
     else if(latAB>LAT_LIMIT && latBC<LAT_LIMIT && latCA>LAT_LIMIT) {
       faultylat = 'A';
       LAT = (latB+latC)/2;
-      gpsLatSTATE = CUT_A;
+      gpsLatSTATE = BAD_A;
       CurrentState = "Getting faulty measurements for the A system latitude";
       reason = "Using an average of B and C measurements for latitude";
     }
     else if(latAB<LAT_LIMIT && latBC>LAT_LIMIT && latCA>LAT_LIMIT) {
       faultylat = 'C';
       LAT = (latA+latB)/2;
-      gpsLatSTATE = CUT_C;
+      gpsLatSTATE = BAD_C;
       CurrentState = "Getting faulty measurements for the C system latitude";
       reason = "Using an average of A and B measurements for latitude";
     }
@@ -101,6 +93,9 @@ void CompareGPS() {
       if(gpsCounterLat == 20) {
         gpsLatSTATE = GPS_FAILURE;
         reason = "The latitude measurements were faulty and needed to be cut";
+      }
+      else {
+        gpsCounterLat = 0;
       }
     }
 
@@ -118,21 +113,21 @@ void CompareGPS() {
     if(lonAB>LON_LIMIT && lonBC>LON_LIMIT && lonCA<LON_LIMIT) {
       faultylon = 'B';
       LON = (lonA+lonC)/2;
-      gpsLonSTATE = CUT_B;
+      gpsLonSTATE = BAD_B;
       CurrentState = "Getting faulty measurements for the B system longitude";
       reason = "Using an average of A and C measurements for longitude";
     }
     else if(lonAB>LON_LIMIT && lonBC<LON_LIMIT && lonCA>LON_LIMIT) {
       faultylon = 'A';
       LON = (lonB+lonC)/2;
-      gpsLonSTATE = CUT_A;
+      gpsLonSTATE = BAD_A;
       CurrentState = "Getting faulty measurements for the A system longitude";
       reason = "Using an average of B and C measurements for longitude";
     }
     else if(lonAB<LON_LIMIT && lonBC>LON_LIMIT && lonCA>LON_LIMIT) {
       faultylon = 'C';
       LON = (lonA+lonB)/2;
-      gpsLonSTATE = CUT_C;
+      gpsLonSTATE = BAD_C;
       CurrentState = "Getting faulty measurements for the C system longitude";
       reason = "Using an average of A and B measurements for longitude";
     }
@@ -144,6 +139,9 @@ void CompareGPS() {
       if(gpsCounterLon == 20) {
         gpsLonSTATE = GPS_FAILURE;
         reason = "The longitude measurements were faulty and needed to be cut";
+      }
+      else {
+        gpsCounterLon = 0;
       }
     }
 
@@ -158,21 +156,21 @@ void CompareGPS() {
     if(altAB>ALT_LIMIT && altBC>ALT_LIMIT && altCA<ALT_LIMIT) {
       faultyalt = 'B';
       ALT = (altA+altC)/2;
-      gpsSTATE = CUT_B;
+      gpsSTATE = BAD_B;
       CurrentState = "Getting faulty measurements for the B system altitude";
       reason = "Using an average of A and C measurements for altitude";
     }
     else if(altAB>ALT_LIMIT && altBC<ALT_LIMIT && altCA>ALT_LIMIT) {
       faultyalt = 'A';
       ALT = (altB+altC)/2;
-      gpsAltSTATE = CUT_A;
+      gpsAltSTATE = BAD_A;
       CurrentState = "Getting faulty measurements for the A system altitude";
       reason = "Using an average of B and C measurements for altitude";
     }
     else if(altAB<ALT_LIMIT && altBC>ALT_LIMIT && altCA>ALT_LIMIT) {
       faultyalt = 'C';
       ALT = altA+altB)/2;
-      gpsAltSTATE = CUT_C;
+      gpsAltSTATE = BAD_C;
       CurrentState = "Getting faulty measurements for the C system altitude";
       reason = "Using an average of A and B measurements for altitude";
       
@@ -186,14 +184,13 @@ void CompareGPS() {
         gpsAltSTATE = GPS_FAILURE;
         reason = "The altitude measurements were faulty and needed to be cut";
       }
+      else {
+        gpsCounterAlt = 0;
+      }
     }
+}
 
 
-
-
-
-
-  
     // The only case not covered in both latitudes and longitudes is the case in which two GPS' are giving bad information, but the bad information they are giving is the same.
-    // This means that the latitude or longitude used is a faulty one, and I do not currently see a way to fix this problem
+    // This means that the latitude or longitude used will be a faulty one, and I do not currently see a way to fix this problem
   

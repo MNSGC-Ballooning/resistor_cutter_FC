@@ -47,6 +47,11 @@ void updateTelemetry() {
   }
   else {
     // use linear regressions to predict geo-coordinates
+    //heading = getHeading(latitude[1],latitude[9],longitude[1],longitude[9]);
+    //groundSpeed = getGroundSpeed(latitude[1],latitude[9],longitude[1],longitude[9],timeStamp[1],timeStamp[9]);// I think we have to use heading and ground speed here, but they arent set, so I set them.
+    // Also, if we are getting oupdates every second instead of every 4 seconds, shouldn't we be changing the size of these arrays to 4 times longer to have the same amount of time between data?
+    // So all these arrays should be 0 and 39 instead of 0 and 9. That way we are still spaced out by 40 seconds
+    // Also, to get heading and ground speed, we need a fix at 1 and 9
     latitude[0] = getNextLat(latitude[1],heading,dt,groundSpeed);
     longitude[0] = getNextLong(longitude[1],latitude[1],heading,dt,groundSpeed);
 
@@ -91,7 +96,7 @@ bool boundaryCheck() {
     cutReasonB = F("reached northern boundary");
     return true;
   }
-  else if (latitude < SOUTHERN_BOUNDARY) {
+  else if (lxatitude < SOUTHERN_BOUNDARY) {
     cutReasonA = F("reached southern boundary");
     cutReasonB = F("reached southern boundary");
     return true; 

@@ -17,6 +17,16 @@
 #include <Arduino.h>
 
 
+  // The definitions are to see what I used. These will have to be changed to the main code once you implement them Steele
+  #define LAT_LIMIT 0.05 // In degrees (because the gps function returns this in degrees)
+  #define INITIALIZATION 0x00
+  #define LON_LIMIT 0.02 // In degrees this is smaller because the latitude in sweeden is smaller per degree
+  #define ALT_LIMIT 100 // I think this is in meters, I believe thats what the gps outputs but can easily be changed to feet
+  #define BAD_A = 0x63
+  #define BAD_B = 0x64
+  #define BAD_C = 0x65
+  #define GPS_FAILURE 0x43 // I made CUT_C and FAILURE whatever I wanted so these can be changed as well
+
 // Pin Definitions
 #define UBLOX_RX 2
 #define UBLOX_TX 3
