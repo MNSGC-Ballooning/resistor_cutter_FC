@@ -1,29 +1,27 @@
 // Resistor Cutaway Standalone System
 
-// This is the code for the main flight computer, to be flown with a Teensy 3.5 and an SD logger
-// Communication with cutter boxes via bluetooth
-
-#define SERIAL_BUFFER_SIZE 32
+// This is the code for the main flight computer, presumably flown with a Teensy 3.5 and an SD logger
+// Communications devices still need to be decided and implemented
 
 // Libraries
 #include <SPI.h>
 #include <SD.h>
-#include <SoftwareSerial.h>
 #include <UbloxGPS.h>
+#include <MS5611.h>
 #include <Arduino.h>
 
 
+
+
 // Pin Definitions
-#define UBLOX_RX 2
-#define UBLOX_TX 3
+#define UBLOX_RX 34
+#define UBLOX_TX 33
 #define CUTTER_PIN 5
 #define LED_SD 6
 #define LED_GPS 7
-#define BLUE_RX_A 8
-#define BLUE_TX_A 9
-#define BLUE_RX_B 10
-#define BLUE_TX_B 11
-#define TWO_WIRE_BUS 12
+#define CHIP_SELECT 8
+#define ONE_WIRE_BUS 28
+#define TWO_WIRE_BUS 29
 #define PRESSURE_ANALOG_PIN A0
 
 // Intervals
@@ -54,16 +52,16 @@
 
 // Boundaries
 ///////CHANGE BEFORE EACH FLIGHT////////
-#define EASTERN_BOUNDARY -92            // longitudes
-#define WESTERN_BOUNDARY -95
-#define NORTHERN_BOUNDARY 45            // latitudes
-#define SOUTHERN_BOUNDARY 42
-#define SLOW_DESCENT_CEILING 110000     // max altitude stack can reach before balloon is cut and stack enters slow descent state
-#define SLOW_DESCENT_FLOOR 80000        // min altitude for the slow descent state
-#define INIT_ALTITUDE 5000              // altitude at which the state machine begins
-#define RECOVERY_ALTITUDE 7000          // altitude at which the recovery state intializes on descent
-#define MIN_TEMP -60                    // minimum acceptable internal temperature
-#define MAX_TEMP 90                     // maximum acceptable interal temperature
+#define EASTERN_BOUNDARY 40.0            // longitudes
+#define WESTERN_BOUNDARY -2.0
+#define NORTHERN_BOUNDARY 77.0            // latitudes
+#define SOUTHERN_BOUNDARY 50.0
+#define SLOW_DESCENT_CEILING 110000.0     // max altitude stack can reach before balloon is cut and stack enters slow descent state
+#define SLOW_DESCENT_FLOOR 80000.0        // min altitude for the slow descent state
+#define INIT_ALTITUDE 5000.0              // altitude at which the state machine begins
+#define RECOVERY_ALTITUDE 7000.0          // altitude at which the recovery state intializes on descent
+#define MIN_TEMP -60.0                    // minimum acceptable internal temperature
+#define MAX_TEMP 90.0                     // maximum acceptable interal temperature
 
 // Velocity Boundaries
 #define MAX_SA_RATE 375                 // maximum velocity (ft/min) that corresponds to a slow ascent state
@@ -72,6 +70,33 @@
 #define MIN_SD_RATE -600                // minimum velocity that corresponds to a slow desent state
 
 #define PRESSURE_TIMER_ALTITUDE 70000   // altitude at which the pressure timer begins
+
+#define blueSerialA Serial4
+#define blueSerialB Serial3
+
+struct data{                                   // setting up data structure for communication
+  uint8_t startByte;
+  uint8_t cutterTag;
+  float latitude;
+  float longitude;
+  float Altitude;
+  float AR;
+  uint8_t cutStatus;
+  uint8_t currentState;
+  uint16_t checksum;
+  uint8_t stopByte;
+}dataPacketA;                                // shortcut to create data object
+data dataPacketB; 
+
+struct instruction{
+  uint8_t startByte;
+  uint8_t cutterTag;
+  uint8_t Command;
+  //float pressure;
+  uint16_t checksum;
+  uint8_t stopByte;
+}instructionA;
+instruction instructionB;
 
 // Time Stamps
 unsigned long updateStamp = 0;
@@ -93,8 +118,8 @@ char fileName[] = "rCut00.csv";
 bool sdActive = false;
 
 // GPS Variables
-SoftwareSerial ubloxSerial(UBLOX_RX,UBLOX_TX);
-UbloxGPS gps(&ubloxSerial);
+
+UbloxGPS gps(&Serial5);
 float alt[SIZE];                  // altitude in feet, also there exists a queue library we can use instead
 unsigned long timeStamp[SIZE];    // time stamp array that can be used with alt array to return a velocity
 float latitude[SIZE];
@@ -107,34 +132,37 @@ float heading;
 uint8_t sats;
 bool gpsLEDOn = false;
 
-// Bluetooth
-SoftwareSerial blueSerialA(BLUE_RX_A, BLUE_TX_A); // serial initializations
-SoftwareSerial blueSerialB(BLUE_RX_B, BLUE_TX_B);
-struct data{                                   // setting up data structure for communication
-  uint8_t startByte;
-  uint8_t cutterTag;
-  float latitude;
-  float longitude;
-  float Altitude;
-  float AR;
-  uint8_t cutStatus;
-  uint8_t currentState;
-//  uint16_t checksum;
-  uint8_t stopByte;
-}dataPacketA;                                // shortcut to create data object
-data dataPacketB;                            // creating second data object
+// MS5611 Pressure Sensor Variables
+MS5611 baro;
+float seaLevelPressure;         // in Pascals
+float baroReferencePressure;    // some fun pressure/temperature readings below 
+float baroTemp;                 // non-"raw" readings are in Pa for pressure, C for temp, meters for altitude
+unsigned int pressurePa;
+float pressureAltitude;
+float pressureRelativeAltitude;
+boolean baroCalibrated = false; // inidicates if the barometer has been calibrated or not
 
+// Thermistors
+float t1,t2 = -127.00;                          //Temperature values, will probably be thermistors!!!!!!!
+float dt = 0;
 
 void setup() {
   Serial.begin(9600);   // initialize serial monitor
-  blueSerialA.begin(9600); // initialize bluetooth communications
-  blueSerialB.begin(9600);
+  Serial4.begin(9600);
+  while(!Serial4);
+  Serial3.begin(9600);
+
+  Serial4.println("Goodnight moon!");
   
   initGPS();            // initialze GPS
 
-//  initTemperatures();   // initalize temperature sensors
+ // initPressure();       // initialize pressure sensor
+
+  initTemperatures();   // initalize temperature sensors
 
   initSD();             // initialize SD card
+
+  
 
   pinMode(LED_SD,OUTPUT);
   pinMode(LED_GPS,OUTPUT);
@@ -150,20 +178,21 @@ void loop() {
   if(millis() - updateStamp > UPDATE_INTERVAL) { 
     updateStamp = millis();
       
-//    updateTemperatures(); // update temperature sensors
+    //updatePressure();   // update pressure data
+
+    updateTemperatures(); // update temperature sensors
 
     updateTelemetry();  // update GPS data
-    
 
     checkComms('A');
     checkComms('B');
-
-    CompareGPS();     // reads and compares comms data on both cutters to main, if two out of three request cut, makes a cut
     
     logData();          // log the data
+
+    //NEEDED: Function to read data from comms from cutter boxes
     
     stateMachine();     // update the state machine
-    }
+  }
 
   // cut balloon if the master timer expires
   if(millis() > MASTER_INTERVAL*M2MS) {
