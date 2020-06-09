@@ -24,16 +24,7 @@
 #define TWO_WIRE_BUS 29
 #define PRESSURE_ANALOG_PIN A0
 
-// Intervals
-#define FIX_INTERVAL 5000               // GPS with a fix—will flash for 5 seconds
-#define NOFIX_INTERVAL 2000             // GPS with no fix—will flash for 2 seconds
-#define GPS_LED_INTERVAL 10000          // GPS LED runs on a 10 second loop
-#define UPDATE_INTERVAL 2000            // update all data and the state machine every 4 seconds
-#define CUT_INTERVAL 30000              // ensure the cutting mechanism is on for 30 seconds
-#define MASTER_INTERVAL 135             // master timer that cuts balloon after 2hr, 15min
-#define PRESSURE_TIMER_INTERVAL 50      // timer that'll cut the balloon 50 minutes after pressure reads 70k feet
-#define ASCENT_INTERVAL 135             // timer that cuts balloon A 2 hours and 15 minutes after ASCENT state initializes
-#define SLOW_DESCENT_INTERVAL 60        // timer that cuts both balloons (as a backup) an hour after SLOW_DESCENT state initializes
+
 
 // Constants
 #define PA_TO_ATM 1/101325              // PSI to ATM conversion ratio
@@ -63,11 +54,7 @@
 #define MIN_TEMP -60.0                    // minimum acceptable internal temperature
 #define MAX_TEMP 90.0                     // maximum acceptable interal temperature
 
-// Velocity Boundaries
-#define MAX_SA_RATE 375                 // maximum velocity (ft/min) that corresponds to a slow ascent state
-#define MAX_FLOAT_RATE 100              // maximum velocity that corresponds to a float state, or minimum for a slow ascent state
-#define MIN_FLOAT_RATE -100             // minimum velocity that corresponds to a float state, or maximum for a slow descent state
-#define MIN_SD_RATE -600                // minimum velocity that corresponds to a slow desent state
+
 
 #define PRESSURE_TIMER_ALTITUDE 70000   // altitude at which the pressure timer begins
 
