@@ -13,7 +13,7 @@
   float lonA, lonB, lonC, lonAPrev, lonBPrev, lonCPrev;
   float altA, altB, altC, altAPrev, altBPrev, altCPrev;
   float alt[10]; 
-  float latitude, longitude, alt;
+  float latitude, longitude, Altitude;
   bool AWorking, BWorking, CWorking;
 
 void CompareGPS() {
@@ -42,37 +42,37 @@ void CompareGPS() {
     else if(AWorking && !BWorking && !CWorking) { // A only working
       latitude = latA;
       longitude = lonA;
-      alt = altA;
+      Altitude = altA;
     }
     else if(!AWorking && BWorking && !CWorking) { // B only working
       latitude = latB;
       longitude = lonB;
-      alt = altB;
+      Altitude = altB;
     }
     else if(!AWorking && !BWorking && CWorking) { // C only working
       latitude = latC;
       longitude = lonC;
-      alt = altC;
+      Altitude = altC;
     }
     else if(AWorking && BWorking && !CWorking) { // A and B working
       latitude = (latA+latB)/2;
       longitude = (lonA+lonB)/2;
-      alt = (altA+altB)/2;
+      Altitude = (altA+altB)/2;
     }
     else if(AWorking && !BWorking && CWorking) { // A and C working
       latitude = (latA+latC)/2;
       longitude = (lonA+lonC)/2;
-      alt = (altA+altC)/2;
+      Altitude = (altA+altC)/2;
     }
     else if(!AWorking && BWorking && CWorking) { // B and C working
       latitude = (latB+latC)/2;
       longitude = (lonB+lonC)/2;
-      alt = (altB+altC)/2;
+      Altitude = (altB+altC)/2;
     }
     else if(AWorking && BWorking && CWorking) { // A B and C working
       latitude = (latA+latB+latC)/3;
       longitude = (lonA+lonB+lonC)/3;
-      alt = (altA+altB+altC)/3;
+      Altitude = (altA+altB+altC)/3;
     }
 
 
