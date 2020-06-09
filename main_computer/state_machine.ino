@@ -15,7 +15,7 @@ void stateMachine() {
   static byte initCounter = 0;
 
   // ensure the state machine does not start until a certain intial altitude is reached
-  if(!initDone && fixStatus[0] == FIX) {
+  if(!initDone && fixStatus == FIX) {
     state = INITIALIZATION;
     stateString = F("Initialization");
     if(alt[0] > INIT_ALTITUDE) {
@@ -28,7 +28,7 @@ void stateMachine() {
   }
 
   // run state switch function if the state machine is intialized
-  if (initDone) { 
+  if (initDone && fixStatus == FIX) { 
     stateSwitch();
   }
 
@@ -48,7 +48,7 @@ void stateMachine() {
       }
       // cut balloon A if the termination altitude is reached
       if (alt[0] > SLOW_DESCENT_CEILING) {
-        cutResistorOn('a');
+        compareAlt();
         cutReasonA = F("reached termination altitude");
       }
 
@@ -60,8 +60,7 @@ void stateMachine() {
       stateString = F("Slow Ascent");
 
       // cut both balloons as the stack is ascending too slowly
-      cutResistorOn('a');
-      cutResistorOn('b');
+      compareAR();
       cutReasonA = F("slow ascent state");
       cutReasonB = F("slow ascent state");
 
@@ -172,7 +171,7 @@ void stateSwitch() {
 
   if(ascentRate > MAX_SA_RATE && state != ASCENT) {
     ascentCounter++;
-    if(ascentCounter >= 40) {
+    if(ascentCounter >= 10) {
       state = ASCENT;
       ascentCounter = 0;
       stateSwitched = true;
@@ -180,7 +179,7 @@ void stateSwitch() {
   }
   else if(ascentRate <= MAX_SA_RATE && ascentRate > MAX_FLOAT_RATE && state != SLOW_ASCENT) {
     slowAscentCounter++;
-    if(slowAscentCounter >= 40) {
+    if(slowAscentCounter >= 10) {
       state = SLOW_ASCENT;
       slowAscentCounter = 0;
       stateSwitched = true;
@@ -188,7 +187,7 @@ void stateSwitch() {
   }
   else if(ascentRate <= MAX_FLOAT_RATE && ascentRate >= MIN_FLOAT_RATE && state != FLOAT) {
     floatCounter++;
-    if(floatCounter >= 600) {
+    if(floatCounter >= 20) {
       state = FLOAT;
       floatCounter = 0;
       stateSwitched = true;
@@ -196,7 +195,7 @@ void stateSwitch() {
   }
   else if(ascentRate < MIN_FLOAT_RATE && ascentRate >= MIN_SD_RATE && state != SLOW_DESCENT) {
     slowDescentCounter++;
-    if(slowDescentCounter >= 40) {
+    if(slowDescentCounter >= 10) {
       state = SLOW_DESCENT;
       slowDescentCounter = 0;
       stateSwitched = true;
@@ -204,7 +203,7 @@ void stateSwitch() {
   }
   else if(ascentRate < MIN_SD_RATE && state !=DESCENT) {
     descentCounter++;
-    if(descentCounter >= 40) {
+    if(descentCounter >= 10) {
       state = DESCENT;
       descentCounter = 0;
       stateSwitched = true;
@@ -212,7 +211,7 @@ void stateSwitch() {
   }
   else if(state != RECOVERY && (state == DESCENT || state == SLOW_DESCENT) && alt[0] < RECOVERY_ALTITUDE) {
     recoveryCounter++;
-    if(recoveryCounter >= 40) {
+    if(recoveryCounter >= 10) {
       state = RECOVERY;
       recoveryCounter = 0;
       stateSwitched = true;
@@ -222,7 +221,7 @@ void stateSwitch() {
   // part of a separate series of if/else statements as criteria for this state is different
   if(boundaryCheck() && state != OUT_OF_BOUNDARY) {
     boundaryCounter++;
-    if(boundaryCounter >= 40) {
+    if(boundaryCounter >= 10) {
       state = OUT_OF_BOUNDARY;
       boundaryCounter = 0;
       stateSwitched = true;
@@ -231,7 +230,7 @@ void stateSwitch() {
 
   if(tempCheck() && state != TEMPERATURE_FAILURE)  {
     tempCounter++;
-    if(tempCounter >= 40) {
+    if(tempCounter >= 10) {
       state = TEMPERATURE_FAILURE;
       tempCounter  = 0;
       stateSwitched = true;
