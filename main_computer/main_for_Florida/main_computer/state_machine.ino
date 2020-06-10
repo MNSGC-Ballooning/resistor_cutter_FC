@@ -1,8 +1,6 @@
 // State machine functions for the cutaway system
 
-////**** VERY IMPORTANT VARIABLES THAT YOU WILL NEED TO INCORPORATE ****\\\\
-uint8_t fixStatus; // gps fix status
-float ascentRate; // current ascent rate (in feet/s)
+////**** VERY IMPORTANT VARIABLES THAT YOU WILL NEED TO INCORPORATE ****////////////
 float temp; // internal temperature
 // Cut command functions for cutter computers A and B --> fill in where labeled in stateMachine()
 // Make sure to update Boundaries!!!
@@ -69,7 +67,7 @@ void stateMachine() {
   if(!initDone && fixStatus == FIX) { 
     state = INITIALIZATION;
     stateString = F("Initialization");
-    if(Altitude > INIT_ALTITUDE) {
+    if(Altitude[0] > INIT_ALTITUDE) {
       initCounter++;
       if(initCounter >= 10) {
         initCounter = 0;
@@ -95,12 +93,12 @@ void stateMachine() {
 
       // cut balloon A if the ascent timer runs out
       if(millis() - ascentStamp > ASCENT_INTERVAL*60000) {
-        //******************* SEND CUT COMMAND TO CUTTER COMPUTER A ********************\\\\\\\\\\\\\
+        //******************* SEND CUT COMMAND TO CUTTER COMPUTER A ******************////////////
         cutReasonA = F("expired ascent timer");
       }
       // cut balloon A if the termination altitude is reached
-      if (Altitude > SLOW_DESCENT_CEILING) {
-        //******************* SEND CUT COMMAND TO CUTTER COMPUTER A *********************\\\\\\\\\\\\
+      if (Altitude[0] > SLOW_DESCENT_CEILING) {
+        //******************* SEND CUT COMMAND TO CUTTER COMPUTER A *********************////////////
         cutReasonA = F("reached termination altitude");
       }
       else cutReasonA = F("0");
@@ -113,7 +111,8 @@ void stateMachine() {
       stateString = F("Slow Ascent");
 
       // cut both balloons as the stack is ascending too slowly
-      //******************* SEND CUT COMMAND TO CUTTER COMPUTERS A AND B ********************\\\\\\\\\\\\\
+      //******************* SEND CUT COMMAND TO CUTTER COMPUTERS A AND B ********************////////////
+      
       cutReasonA = F("slow ascent state");
       cutReasonB = F("slow ascent state");
 
@@ -127,11 +126,12 @@ void stateMachine() {
       static unsigned long slowDescentStamp = millis(); // initializaed upon first time in this state
       static byte SDTerminationCounter = 0;
 
-      if(millis() - slowDescentStamp > SLOW_DESCENT_INTERVAL*60000 || (Altitude < SLOW_DESCENT_FLOOR && Altitude != 0)) {
+      if(millis() - slowDescentStamp > SLOW_DESCENT_INTERVAL*60000 || (Altitude[0] < SLOW_DESCENT_FLOOR && Altitude[0] != 0)) {
         SDTerminationCounter++;
 
         if(SDTerminationCounter >= 10) {
-          //******************* SEND CUT COMMAND TO CUTTER COMPUTERS A AND B ********************\\\\\\\\\\\\\
+          //******************* SEND CUT COMMAND TO CUTTER COMPUTERS A AND B ******************////////////
+          
           cutReasonA = F("reached slow descent floor");
           cutReasonB = F("reached slow descent floor");
         }
@@ -147,13 +147,13 @@ void stateMachine() {
       static byte floorAltitudeCounter = 0;   // increments if the stack is below the slow descent altitude floor
       static bool cutCheck = false;
 
-      if(Altitude < SLOW_DESCENT_FLOOR && Altitude != 0) {
+      if(Altitude[0] < SLOW_DESCENT_FLOOR && Altitude[0] != 0) {
         floorAltitudeCounter++;
 
         if(floorAltitudeCounter >= 10 && !cutCheck) {
           floorAltitudeCounter = 0;
 
-          //******************* SEND CUT COMMAND TO CUTTER COMPUTERS A AND B ********************\\\\\\\\\\\\\
+          //******************* SEND CUT COMMAND TO CUTTER COMPUTERS A AND B *******************////////////
           cutReasonA = F("descent state cut check");
           cutReasonB = F("descent state cut check");
         }
@@ -167,7 +167,7 @@ void stateMachine() {
       stateString = F("Float");
 
       // cut both balloons as the stack is in a float state
-      c//******************* SEND CUT COMMAND TO CUTTER COMPUTERS A AND B ********************\\\\\\\\\\\\\
+      //******************* SEND CUT COMMAND TO CUTTER COMPUTERS A AND B ********************////////////
       cutReasonA = F("float state");
       cutReasonB = F("float state");      
 
@@ -179,7 +179,7 @@ void stateMachine() {
       stateString = F("Out of Boundary");
       
       // cut both balloons as the stack is out of the predefined flight boundaries
-      //******************* SEND CUT COMMAND TO CUTTER COMPUTERS A AND B ********************\\\\\\\\\\\\\
+      //******************* SEND CUT COMMAND TO CUTTER COMPUTERS A AND B ********************////////////
       // cut reasons are more specifically defined in the boundaryCheck() function
 
       break;
@@ -190,7 +190,7 @@ void stateMachine() {
       stateString = F("Temperature Failure");
 
       // cut balloon as temps are at critical levels
-      //******************* SEND CUT COMMAND TO CUTTER COMPUTERS A AND B ********************\\\\\\\\\\\\\
+      //******************* SEND CUT COMMAND TO CUTTER COMPUTERS A AND B ********************////////////
       
       cutReasonA = F("Temperature failure");
       cutReasonB = F("Temperature failure");
@@ -258,7 +258,7 @@ void stateSwitch() {
       stateSwitched = true;
     }
   }
-  else if(state != RECOVERY && (state == DESCENT || state == SLOW_DESCENT) && Altitude < RECOVERY_ALTITUDE) {
+  else if(state != RECOVERY && (state == DESCENT || state == SLOW_DESCENT) && Altitude[0] < RECOVERY_ALTITUDE) {
     recoveryCounter++;
     if(recoveryCounter >= 40) {
       state = RECOVERY;
@@ -289,22 +289,22 @@ void stateSwitch() {
 
 bool boundaryCheck() {
   // function to check if the payload is out of the flight boundaries
-  if (longitude > EASTERN_BOUNDARY) {
+  if (longitude[0] > EASTERN_BOUNDARY) {
     cutReasonA = F("reached eastern boundary");
     cutReasonB = F("reached eastern boundary");
     return true;
   }
-  else if (longitude < WESTERN_BOUNDARY) {
+  else if (longitude[0] < WESTERN_BOUNDARY) {
     cutReasonA = F("reached western boundary");
     cutReasonB = F("reached western boundary");
     return true;
   }
-  else if (latitude > NORTHERN_BOUNDARY) {
+  else if (latitude[0] > NORTHERN_BOUNDARY) {
     cutReasonA = F("reached northern boundary");
     cutReasonB = F("reached northern boundary");
     return true;
   }
-  else if (latitude < SOUTHERN_BOUNDARY) {
+  else if (latitude[0] < SOUTHERN_BOUNDARY) {
     cutReasonA = F("reached southern boundary");
     cutReasonB = F("reached southern boundary");
     return true; 
