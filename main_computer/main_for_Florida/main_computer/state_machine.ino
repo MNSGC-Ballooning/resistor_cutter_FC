@@ -64,7 +64,7 @@ void stateMachine() {
   // ensure the state machine does not start until a certain intial altitude is reached
   static bool initDone = false;
   static byte initCounter = 0;
-  if(!initDone && fixStatus == FIX) { 
+  if(!initDone && fixStatus[0] == FIX) { 
     state = INITIALIZATION;
     stateString = F("Initialization");
     if(Altitude[0] > INIT_ALTITUDE) {

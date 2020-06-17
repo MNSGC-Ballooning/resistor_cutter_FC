@@ -15,7 +15,6 @@
   uint8_t fixStatus[SIZE]; // gps fix status
   float latitude[SIZE], longitude[SIZE], Altitude[SIZE];
   bool AWorking, BWorking, CWorking;
-  float pressureAltitude; // The current altitude calculated from the pressure
   unsigned long timeStamp[SIZE];
   float dt = 0;
   uint8_t sats;
@@ -33,6 +32,20 @@
   
 
 void CompareGPS() {
+
+    for(int i=SIZE-2; i>=0; i--) {
+    // "push back" array indices by one to make room for new values
+    Altitude[i+1] = Altitude[i];
+    latitude[i+1] = latitude[i];
+    longitude[i+1] = longitude[i];
+    timeStamp[i+1] = timeStamp[i];
+    fixStatus[i+1] = fixStatus[i];
+    }
+    timeStamp[0] = millis();  // get most recent time stamp
+
+
+
+  
     latA = 0;// fill in the latitude from cutter A
     latB = 0;// fill in the latitude from cutter B
     latC = 0;// fill in the latitude from the main gondola
@@ -46,22 +59,14 @@ void CompareGPS() {
     AWorking = workingGPS(latAPrev, latA, lonAPrev, lonA, altAPrev, altA);
     BWorking = workingGPS(latBPrev, latB, lonBPrev, lonB, altBPrev, altB);
     CWorking = workingGPS(latCPrev, latC, lonCPrev, lonC, altCPrev, altC);
-    if(fixStatus == FIX && CWorking) {
+    if(fixStatus[0] == FIX && CWorking) {
       CWorking = true;
     }
     else {
       CWorking = false;
     }
 
-    for(int i=0; i<(SIZE-1); i++) {
-    // "push back" array indices by one to make room for new values
-    Altitude[i+1] = Altitude[i];
-    latitude[i+1] = latitude[i];
-    longitude[i+1] = longitude[i];
-    timeStamp[i+1] = timeStamp[i];
-    fixStatus[i+1] = fixStatus[i];
-    }
-    timeStamp[0] = millis();  // get most recent time stamp
+
 
     //////////////////////////////////////////////////////////////
     ///////////INPUT SOMETHING HERE///////////////////////////////
@@ -75,16 +80,9 @@ void CompareGPS() {
     checkFix();
     
     if(!AWorking && !BWorking && !CWorking) { // if none of them are working
-    latitude[0] = getNextLat(latitude[1],heading,dt,groundSpeed);
-    longitude[0] = getNextLong(longitude[1],latitude[1],heading,dt,groundSpeed);
-      if (abs(Altitude[1] - pressureAltitude) < 1000 && Altitude[1] < 80000) {
-        // only log pressure altitude if it is within 1000 feet of the most recent altitude calculation AND below 80,000 ft (where pressure sensors are reliable)
-        Altitude[0] = pressureAltitude;
-      }
-      else {
-        // if pressure sensor altitude isn't reliable, find next altitude through a linear regression method
-        Altitude[0] = getNextAlt(ascentRate,dt,Altitude[1]);
-      }
+      latitude[0] = getNextLat(latitude[1],heading,dt,groundSpeed);
+      longitude[0] = getNextLong(longitude[1],latitude[1],heading,dt,groundSpeed);
+      Altitude[0] = getNextAlt(ascentRate,dt,Altitude[1]);
     }
     else if(AWorking && !BWorking && !CWorking) { // A only working
       latitude[0] = latA;
