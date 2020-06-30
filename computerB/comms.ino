@@ -54,7 +54,7 @@ bool readInstruction(){
             return false; 
           }
     
-    if(inputPacket.command == 0x15 && inputPacket.cutterTag == 0x42)           // cut command
+    if(inputPacket.command == 0x25 && inputPacket.cutterTag == 0x42)           // cut command
       cutResistorOnB();
     else
       cutResistorOffB();
