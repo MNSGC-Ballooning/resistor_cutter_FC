@@ -1,5 +1,5 @@
 //============================================================================================================================================
-// MURI Resistor Cutter Box B
+// MURI Resistor Cutter Box A
 // Written by PJ Collins and Steele Mitchell - coll0792 & mitc0596 Spring 2020
 //============================================================================================================================================
 //
@@ -16,7 +16,7 @@
     | Bluetooth hc05               | 8,9           |
     | H-Driver                     | 10,11         |
     | Latching Relay               | 12,13         |
-    | Thermistor                   | A0            | 
+    | Thermistors                  | A0, A1        | 
      ----------------------------------------------
 */
 
@@ -36,12 +36,13 @@
 #define LED 7
 #define BLUE_RX 8
 #define BLUE_TX 9
-#define CUTTER_PIN1 10
-// #define CUTTER_PIN2 11 // not actually 11 but pick a pin -_/(o_o)\_-
+#define CUTTER_PIN1 3 // change to 11, 10
+#define CUTTER_PIN2 2 // this pin needs to be connected and initialized, but will be inactive
 #define HEAT_ON 12
 #define HEAT_OFF 13
-#define THERMISTOR_A A1
-#define THERMISTOR_B A2   
+#define THERMISTOR_A A0
+#define THERMISTOR_B A1 
+
 
 // Intervals
 #define FIX_INTERVAL 5000               // GPS with a fix—will flash for 5 seconds
@@ -72,12 +73,12 @@
 
 // Boundaries
 ///////CHANGE BEFORE EACH FLIGHT////////
-#define EASTERN_BOUNDARY -92            // longitudes
-#define WESTERN_BOUNDARY -95
-#define NORTHERN_BOUNDARY 45            // latitudes
-#define SOUTHERN_BOUNDARY 42
-#define SLOW_DESCENT_CEILING 110000     // max altitude stack can reach before balloon is cut and stack enters slow descent state
-#define SLOW_DESCENT_FLOOR 80000        // min altitude for the slow descent state
+#define EASTERN_BOUNDARY 18000000           // longitudes
+#define WESTERN_BOUNDARY -18000000
+#define NORTHERN_BOUNDARY 18000000            // latitudes
+#define SOUTHERN_BOUNDARY -18000000
+#define SLOW_DESCENT_CEILING 10000     // max altitude stack can reach before balloon is cut and stack enters slow descent state
+#define SLOW_DESCENT_FLOOR 8000        // min altitude for the slow descent state
 #define INIT_ALTITUDE 5000              // altitude at which the state machine begins
 #define RECOVERY_ALTITUDE 7000          // altitude at which the recovery state intializes on descent
 #define MIN_TEMP -60                    // minimum acceptable internal temperature
@@ -95,7 +96,7 @@
 
 //Thermistor
 #define C2K 273.15
-#define ADC_MAX 8196                                                    // The maximum adc value given to the thermistor, should be 8196 for a teensy and 1024 for an Arduino
+#define ADC_MAX 1024                                                    // The maximum adc value given to the thermistor, should be 8196 for a teensy and 1024 for an Arduino
 #define CONST_A 0.001125308852122
 #define CONST_B 0.000234711863267                                       // A, B, and C are constants used for a 10k resistor and 10k thermistor for the steinhart-hart equation
 #define CONST_C 0.000000085663516                                       // NOTE: These values change when the thermistor and/or resistor change value, so if that happens, more research needs to be done on those constants
@@ -105,7 +106,7 @@ float t2 = -127.00;
 
 // Time Stamps
 unsigned long updateStamp = 0;
-unsigned long cutStampB = 0;  
+unsigned long cutStampA = 0,  cutStampB = 0;  
 unsigned long LEDStamp = 0;
 
 // State Machine
@@ -139,7 +140,7 @@ String sensorHeat_Status = "";
 
 // Bluetooth comms variables
 SoftwareSerial blueSerial(BLUE_RX, BLUE_TX); // initialize bluetooth serial
-struct data{                                 // setting up output variables
+struct data{
   uint8_t startByte;
   uint8_t cutterTag;
   float latitude;
@@ -152,11 +153,10 @@ struct data{                                 // setting up output variables
   uint8_t stopByte;
 }dataPacket;                                 // shortcut to create data object dataPacket
 
-struct input{                                // setting up input variables
+struct input{
   uint8_t startByte;
   uint8_t cutterTag;
   uint8_t command;
-  // float pressure;
   uint16_t checksum;
   uint8_t stopByte;
 }inputPacket;
@@ -165,6 +165,7 @@ struct input{                                // setting up input variables
 long timeOut;
 bool autonomousNow = false;
 
+int numb=0;
 
 void setup() {
   Serial.begin(9600);   // initialize serial monitor
@@ -178,7 +179,7 @@ void setup() {
   pinMode(LED,OUTPUT);
 
   pinMode(CUTTER_PIN1,OUTPUT);
-  // pinMode(CUTTER_PIN2,OUTPUT);
+  pinMode(CUTTER_PIN2,OUTPUT);
 
 }
 
@@ -202,7 +203,10 @@ void loop() {
     readInstruction();  // read commands from main, cuts if instructed
 
     if( !readInstruction()) timeOut+= UPDATE_INTERVAL;
-    if( timeOut > 2*M2MS) autonomousNow = true;
+    if( timeOut > 0.5*M2MS){
+      autonomousNow = true;
+      Serial.println("Autonomous Mode ON");
+    }
   }
 
   // cut balloon if the master timer expires

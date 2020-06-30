@@ -21,36 +21,49 @@ void sendData(){
   dataHolder[20] = extraStuff[0];
   dataHolder[21] = extraStuff[1];
   dataHolder[22] = 0x53;
-  
+
   blueSerial.write(dataHolder,23);        // write output array to main computer
 }
 
 bool readInstruction(){
-  byte inputHolder[10] = {0};               // initialize data collection byte
+  byte inputHolder[6] = {0};               // initialize data collection byte
   uint16_t checksumCheck = 0;
   
-        if(blueSerial.available()>9) 
+        if(blueSerial.available()>5) 
         {
-          for(int i=0; i<10; i++)
+          for(int i=0; i<6; i++)
           {
             inputHolder[i] = blueSerial.read(); // saves each byte into byte array input
-            if (i<7) checksumCheck += inputHolder[i];
+            if (i<3) checksumCheck += inputHolder[i];
           }
-          memcpy(&inputPacket,&inputHolder,10); // copies input onto struct dataPacket1, a readable format
+          memcpy(&inputPacket,&inputHolder,6); // copies input onto struct dataPacket1, a readable format
         }
+
+        Serial.println(inputPacket.checksum);
+        Serial.println(checksumCheck);
+        Serial.println();
       
-    if(inputPacket.checksum != checksumCheck) return false;
-    if((inputPacket.startByte != 0x42) || (inputPacket.stopByte != 0x53)) return false;
+    if(inputPacket.checksum != checksumCheck)
+          {
+            while(blueSerial.available()>0) blueSerial.read();
+            return false;
+          }
+     if((inputPacket.startByte != 0x42) || (inputPacket.stopByte != 0x53))
+          {
+            while(blueSerial.available()>0) blueSerial.read();
+            return false; 
+          }
     
-    if(inputPacket.command == 0x25 && inputPacket.cutterTag == 'A')           // cut command
+    if(inputPacket.command == 0x15 && inputPacket.cutterTag == 0x42)           // cut command
       cutResistorOnB();
     else
       cutResistorOffB();
 
     timeOut = 0;
+    Serial.println("Autonomous Mode OFF");
     return true;
   }
 
   void requestCut(){
-    if(autonomousNow && cutterOnB) cutResistorOnB();
+    if(autonomousNow && !cutterOnB) cutResistorOnB();
   }
