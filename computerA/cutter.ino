@@ -1,15 +1,22 @@
 // Resistor Cutter functions
 
 void cutResistorOnA() {   // char argument denotes what cutter is being cut
-    digitalWrite(CUTTER_PIN1,HIGH);
-    // digitalWrite(CUTTER_PIN2,HIGH);
-    cutStatusA = true;
-    cutterOnA = true;
+    if(!cutterOnA){
+      digitalWrite(CUTTER_PIN1,HIGH);
+      cutStatusA = true;
+      cutterOnA = true;
+      Serial.println("Cutting");
+      cutStampA = millis();
+    }
 }
 
 
 void cutResistorOffA() {
-    digitalWrite(CUTTER_PIN1,LOW);
-    // digitalWrite(CUTTER_PIN2,LOW);
-    cutterOnA = false;
+    if(cutterOnA)
+    {
+      digitalWrite(CUTTER_PIN1,LOW);
+      delay(5000);
+      cutterOnA = false;
+      Serial.println("Shutting cutter off");
+    }
 }

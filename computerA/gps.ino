@@ -15,7 +15,7 @@ void initGPS() {
 
 void updateTelemetry() {
 
-  for(int i=0; i++; i<(SIZE-1)) {
+  for(int i=SIZE-2; i>=0; i--) {
     // "push back" array indices by one to make room for new values
     alt[i+1] = alt[i];
     latitude[i+1] = latitude[i];
@@ -37,7 +37,7 @@ void updateTelemetry() {
     longitude[0] = gps.getLon();
     alt[0] =  gps.getAlt_feet();
 
-    if(fixStatus[0] == FIX && fixStatus[9] == FIX) {
+    if(fixStatus[0] == FIX){  // ADD BACK IN&& fixStatus[9] == FIX) {
       // only get these values if the GPS had a fix for inputs
       ascentRate = getAscentRate(alt[0],alt[9],timeStamp[0],timeStamp[9]);
       groundSpeed = getGroundSpeed(latitude[0],latitude[9],longitude[0],longitude[9],timeStamp[0],timeStamp[9]);
@@ -58,28 +58,28 @@ void checkFix() {
     fixStatus[0] = FIX;
   }
   else if(gps.getFixAge() > 4000) {
-    fixStatus[0] = NOFIX;
+    fixStatus[0] = FIX; // CHANGE TO NOFIX
   }
   else{
-    fixStatus[0] = NOFIX;
+    fixStatus[0] = FIX; // CHANGE TO NOFIX
   }
 }
 
 bool boundaryCheck() {
   // function to check if the payload is out of the flight boundaries
-  if (longitude > EASTERN_BOUNDARY) {
+  if (longitude[0] > EASTERN_BOUNDARY) {
     cutReasonA = F("reached eastern boundary");
     return true;
   }
-  else if (longitude < WESTERN_BOUNDARY) {
+  else if (longitude[0] < WESTERN_BOUNDARY) {
     cutReasonA = F("reached western boundary");
     return true;
   }
-  else if (latitude > NORTHERN_BOUNDARY) {
+  else if (latitude[0] > NORTHERN_BOUNDARY) {
     cutReasonA = F("reached northern boundary");
     return true;
   }
-  else if (latitude < SOUTHERN_BOUNDARY) {
+  else if (latitude[0] < SOUTHERN_BOUNDARY) {
     cutReasonA = F("reached southern boundary");
     return true; 
   }

@@ -7,7 +7,7 @@ void initRelays(){
 void actHeat(){  
   
   if (t1 < t2 && t1 > -100) sensTemp = t1;
-  else sensTemp = t2;
+  else sensTemp = t1;
   
   if(sensTemp < LOW_TEMP){
     coldSensor = true;                                              // Setting the coldsensor variable to true or false based on the temperature readings
