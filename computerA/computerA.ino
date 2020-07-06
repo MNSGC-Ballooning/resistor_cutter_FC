@@ -34,10 +34,13 @@
 #define UBLOX_RX 0
 #define UBLOX_TX 1
 #define LED 7
+#define LED2 16
 #define BLUE_RX 8
 #define BLUE_TX 9
-#define CUTTER_PIN1 3 // change to 11, 10
-#define CUTTER_PIN2 2 // this pin needs to be connected and initialized, but will be inactive
+#define CUTTER_PIN1 11 
+#define CUTTER_PIN2 10 // this pin needs to be connected and initialized, but will be inactive
+#define CUTTER_PIN3 2 
+#define CUTTER_PIN4 3 // inactive
 #define HEAT_ON 12
 #define HEAT_OFF 13
 #define THERMISTOR_A A0
@@ -47,7 +50,7 @@
 // Intervals
 #define FIX_INTERVAL 5000               // GPS with a fix—will flash for 5 seconds
 #define NOFIX_INTERVAL 2000             // GPS with no fix—will flash for 2 seconds
-#define LED_INTERVAL 10000              // GPS LED runs on a 10 second loop
+#define LED_INTERVAL 1000               // LEDs run on a 1 second loop to indicate lack of connection
 #define UPDATE_INTERVAL 1000            // update all data and the state machine every 1 second
 #define CUT_INTERVAL 30000              // ensure the cutting mechanism is on for 30 seconds
 #define MASTER_INTERVAL 135             // master timer that cuts balloon after 2hr, 15min
@@ -107,7 +110,8 @@ float t2 = -127.00;
 // Time Stamps
 unsigned long updateStamp = 0;
 unsigned long cutStampA = 0,  cutStampB = 0;  
-unsigned long LEDStamp = 0;
+unsigned long LEDOnStamp = 0, LED2OnStamp = 0;
+unsigned long LEDOffStamp = 0, LED2OffStamp = 0;
 
 // State Machine
 uint8_t state; 
@@ -130,7 +134,7 @@ float ascentRate;
 float groundSpeed;
 float heading;
 uint8_t sats;
-bool LEDOn = false;
+bool LEDOn = false, LED2On = false;
 
 // active heating variables
 float sensTemp;
@@ -146,7 +150,6 @@ struct data{
   float latitude;
   float longitude;
   float Altitude;
-  float AR;
   uint8_t cutStatus;
   uint8_t currentState;
   uint16_t checksum;
@@ -177,9 +180,12 @@ void setup() {
   initRelays();        //Initialize Relays
 
   pinMode(LED,OUTPUT);
+  pinMode(LED2,OUTPUT);
 
   pinMode(CUTTER_PIN1,OUTPUT);
   pinMode(CUTTER_PIN2,OUTPUT);
+  pinMode(CUTTER_PIN3,OUTPUT);
+  pinMode(CUTTER_PIN4,OUTPUT);
 
 }
 
@@ -195,7 +201,7 @@ void loop() {
     actHeat();          //Controls active heating
 
     updateTelemetry();  // update GPS data
-    
+
     stateMachine();     // update the state machine
 
     sendData();         // send current data to main
@@ -217,6 +223,7 @@ void loop() {
 
   if(millis() - cutStampA > CUT_INTERVAL && cutterOnA) cutResistorOffA();
 
-  fixLEDSchema();
+  fixGPSLEDSchema();
+  fixBlueLEDSchema();
 
 }

@@ -42,15 +42,13 @@ void stateMachine() {
 
       static unsigned long ascentStamp = millis();
 
-      // cut balloon A if the ascent timer runs out // NEED TO ASK MAIN FOR CONFIRMATION BEFORE CUTTING
+      // cut balloon A if the ascent timer runs out
       if(millis() - ascentStamp > ASCENT_INTERVAL*M2MS) {
-        requestCut();
-        cutReasonA = F("expired ascent timer");
+        // none - only cuts A
       }
       // cut balloon A if the termination altitude is reached
       if (alt[0] > SLOW_DESCENT_CEILING) {
-        requestCut();
-        cutReasonA = F("reached termination altitude");
+        // none - only cuts A
       }
 
       break;
@@ -66,7 +64,7 @@ void stateMachine() {
 
       break;
 
-    ///// Slow Descent /////      THIS STATE STILL NEEDS TO BE WORKED OUT
+    ///// Slow Descent /////   
     case 0x04:
       // organize timing schema for slow descent state
       stateString = F("Slow Descent");

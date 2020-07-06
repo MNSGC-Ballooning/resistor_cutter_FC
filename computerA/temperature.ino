@@ -8,8 +8,6 @@ void updateTemperatures() {
   t2 = CONST_A+CONST_B*t2+CONST_C*t2*t2*t2;
   t1 = 1/t1-C2K;                                                  // The final temperatures for both transistors in Celsius
   t2 = 1/t2-C2K;
-  Serial.print("T1 = ");
-  Serial.println(t1);
 }
 
 
