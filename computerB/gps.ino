@@ -36,8 +36,10 @@ void updateTelemetry() {
     latitude[0] = gps.getLat();
     longitude[0] = gps.getLon();
     alt[0] =  gps.getAlt_feet();
+    Serial.print("Got fix, fix alt = ");
+    Serial.println(alt[0]);
 
-    if(fixStatus[0] == FIX){  // ADD BACK IN&& fixStatus[9] == FIX) {
+    if(fixStatus[0] == FIX && fixStatus[9] == FIX) {
       // only get these values if the GPS had a fix for inputs
       ascentRate = getAscentRate(alt[0],alt[9],timeStamp[0],timeStamp[9]);
       groundSpeed = getGroundSpeed(latitude[0],latitude[9],longitude[0],longitude[9],timeStamp[0],timeStamp[9]);
@@ -58,10 +60,10 @@ void checkFix() {
     fixStatus[0] = FIX;
   }
   else if(gps.getFixAge() > 4000) {
-    fixStatus[0] = FIX; // CHANGE TO NOFIX
+    fixStatus[0] = NOFIX; // CHANGE TO NOFIX
   }
   else{
-    fixStatus[0] = FIX; // CHANGE TO NOFIX
+    fixStatus[0] = NOFIX; // CHANGE TO NOFIX
   }
 }
 
@@ -88,20 +90,26 @@ bool boundaryCheck() {
   } 
 }
 
-void fixLEDSchema() {
+void fixGPSLEDSchema() {
+  // for LED1:
   // fix LED timing schema
-  if(millis() - LEDStamp > LED_INTERVAL && !LEDOn) {
-    LEDStamp = millis();
+  // if fix, solid light
+  // if no fix, blink
+
+  if(fixStatus[0] == FIX && !LEDOn){
     digitalWrite(LED,HIGH);
     LEDOn = true;
   }
-  else if(millis() - LEDStamp > FIX_INTERVAL && fixStatus == FIX && LEDOn) {
-    digitalWrite(LED,LOW);
+  else if (fixStatus[0] == NOFIX && !LEDOn && millis()-LEDOffStamp > LED_INTERVAL){
+    digitalWrite(LED,HIGH);
+    LEDOn = true;
+    LEDOnStamp = millis();
   }
-  else if(millis() - LEDStamp > NOFIX_INTERVAL && fixStatus == NOFIX && LEDOn) {
+  else if (fixStatus[0] == NOFIX && LEDOn && millis()-LEDOnStamp > LED_INTERVAL){
     digitalWrite(LED,LOW);
-  }
-  
+    LEDOn = false;
+    LEDOffStamp = millis();
+  }  
 }
 
 

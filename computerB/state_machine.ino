@@ -40,9 +40,17 @@ void stateMachine() {
     case 0x01:
       stateString = F("Ascent");
 
-      // don't cut B in this case, simply make note of state
       static unsigned long ascentStamp = millis();
-      
+
+      // cut balloon A if the ascent timer runs out
+      if(millis() - ascentStamp > ASCENT_INTERVAL*M2MS) {
+        // none - only cuts A
+      }
+      // cut balloon A if the termination altitude is reached
+      if (alt[0] > SLOW_DESCENT_CEILING) {
+        // none - only cuts A
+      }
+
       break;
 
     ///// Slow Ascent /////
@@ -56,7 +64,7 @@ void stateMachine() {
 
       break;
 
-    ///// Slow Descent /////     
+    ///// Slow Descent /////   
     case 0x04:
       // organize timing schema for slow descent state
       stateString = F("Slow Descent");
